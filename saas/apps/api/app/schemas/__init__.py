@@ -90,6 +90,23 @@ class DashboardStats(BaseModel):
     monthly_pnl: float
 
 
+class UserSettings(BaseModel):
+    """Trading and notification settings response."""
+
+    id: int
+    symbols: list[str]
+    timeframe: str
+    balance: float
+    risk_per_trade: float
+    grid_levels: int
+    grid_step_pct: float
+    martingale_factor: float
+    enable_trading: bool
+    email_notifications: bool
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class UserSettingsUpdate(BaseModel):
     """Payload for replacing user trading and notification preferences."""
 
@@ -113,5 +130,6 @@ __all__ = [
     "TradeCreate",
     "User",
     "UserCreate",
+    "UserSettings",
     "UserSettingsUpdate",
 ]
