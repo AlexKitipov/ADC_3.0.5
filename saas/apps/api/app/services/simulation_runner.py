@@ -22,6 +22,7 @@ import pandas as pd
 from app.services.data_loader import DataLoader
 from app.services.order_management import MockBrokerAPI, OrderManager
 from app.services.pivot_env import PivotEnv
+from app.services.rl_trainer import RLTrainer, RLTrainingConfig
 from core.indicators import TechnicalIndicators
 from core.lstm_model import LSTMPriceGenerator
 
@@ -80,6 +81,10 @@ class SimulationParameters:
     rl_algorithm: str = "PPO"
     rl_total_timesteps: int = 50_000
     algo_hyperparams: dict[str, Any] = field(default_factory=dict)
+    rl_policy: str = "MlpPolicy"
+    rl_model_name: Optional[str] = None
+    rl_verbose: int = 0
+    rl_device: str = "auto"
     train_rl: bool = True
     evaluate_deterministic: bool = True
 
@@ -414,29 +419,22 @@ class SimulationRunner:
         if not config.train_rl:
             return None, None
 
-        algorithm = config.rl_algorithm.upper()
-        if algorithm == "SAC":
-            raise ValueError("SAC requires a continuous action space; PivotEnv uses Discrete(5).")
-        model_classes = self._load_rl_model_classes()
-        if algorithm not in model_classes:
-            raise ValueError(f"Unsupported RL algorithm: {config.rl_algorithm}")
-
-        vec_env_module = import_module("stable_baselines3.common.vec_env")
-        env = vec_env_module.DummyVecEnv([lambda: self._make_env(historical_df, generated_df, config)])
-        hyperparams = dict(config.algo_hyperparams.get(algorithm, config.algo_hyperparams))
-        model = model_classes[algorithm]("MlpPolicy", env, verbose=0, **hyperparams)
-        model.learn(total_timesteps=config.rl_total_timesteps)
-        model_path = output_dir / f"{algorithm.lower()}_pivot_model_v2"
-        model.save(str(model_path))
-        return model, model_path.with_suffix(".zip")
-
-    def _load_rl_model_classes(self) -> dict[str, Any]:
-        stable_baselines = import_module("stable_baselines3")
-        return {
-            "PPO": stable_baselines.PPO,
-            "DQN": stable_baselines.DQN,
-            "A2C": stable_baselines.A2C,
-        }
+        training_config = RLTrainingConfig(
+            algorithm=config.rl_algorithm,
+            total_timesteps=config.rl_total_timesteps,
+            hyperparameters=config.algo_hyperparams,
+            policy=config.rl_policy,
+            model_name=config.rl_model_name,
+            seed=config.random_seed,
+            verbose=config.rl_verbose,
+            device=config.rl_device,
+        )
+        trainer = RLTrainer(
+            env_factory=lambda: self._make_env(historical_df, generated_df, config),
+            output_dir=output_dir,
+        )
+        result = trainer.train(training_config)
+        return result.model, result.model_path
 
     def _evaluate_policy(
         self,
