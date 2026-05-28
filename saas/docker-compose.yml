@@ -1,40 +1,66 @@
+version: '3.8'
+
 services:
-  api:
-    build:
-      context: ./apps/api
-    env_file:
-      - ./.env.example
-    ports:
-      - "8000:8000"
-    depends_on:
-      - postgres
-      - redis
-
-  web:
-    build:
-      context: ./apps/web
-    environment:
-      NEXT_PUBLIC_API_BASE_URL: http://localhost:8000/api/v1
-    ports:
-      - "3000:3000"
-    depends_on:
-      - api
-
   postgres:
     image: postgres:16-alpine
     environment:
-      POSTGRES_DB: adc
-      POSTGRES_USER: adc
-      POSTGRES_PASSWORD: adc
-    ports:
-      - "5432:5432"
+      POSTGRES_USER: adc_user
+      POSTGRES_PASSWORD: secure_password
+      POSTGRES_DB: adc_saas
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
 
   redis:
     image: redis:7-alpine
     ports:
       - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  backend:
+    build:
+      context: ./apps/api
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql://adc_user:secure_password@postgres:5432/adc_saas
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      - postgres
+      - redis
+    volumes:
+      - ./apps/api:/app
+
+  celery:
+    build:
+      context: ./apps/api
+    command: celery -A app.workers.celery worker --loglevel=info
+    environment:
+      DATABASE_URL: postgresql://adc_user:secure_password@postgres:5432/adc_saas
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      - postgres
+      - redis
+    volumes:
+      - ./apps/api:/app
+
+  web:
+    build:
+      context: ./apps/web
+    command: npm run dev -- --host 0.0.0.0
+    environment:
+      VITE_API_URL: http://localhost:8000/api
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    volumes:
+      - ./apps/web:/app
+      - /app/node_modules
 
 volumes:
   postgres_data:
+  redis_data:
