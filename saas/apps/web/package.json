@@ -1,0 +1,14 @@
+{
+  "name": "@adc/saas-web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "test": "echo \"Frontend tests will be added in a future PR.\""
+  },
+  "dependencies": {},
+  "devDependencies": {}
+}

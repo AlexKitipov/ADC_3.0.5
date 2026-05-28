@@ -1,0 +1,10 @@
+[project]
+name = "adc-saas-api"
+version = "0.1.0"
+description = "Backend API for the ADC SaaS platform."
+requires-python = ">=3.11"
+dependencies = []
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]

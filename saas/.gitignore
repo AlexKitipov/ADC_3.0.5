@@ -33,3 +33,7 @@ dist/
 build/
 .DS_Store
 *.log
+
+# Keep frontend source library helpers tracked.
+!apps/web/src/lib/
+!apps/web/src/lib/**
