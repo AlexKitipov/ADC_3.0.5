@@ -73,3 +73,38 @@ print(result.to_dict())
 Production-style runs can leave `train_lstm=True` and `train_rl=True` and tune
 `rl_algorithm`, `rl_total_timesteps`, `algo_hyperparams`, and the pivot-grid
 parameters exposed by `SimulationParameters`.
+
+## RL trainer module
+
+`app/services/rl_trainer.py` is the standalone reinforcement-learning training
+module.  It owns:
+
+- algorithm selection for `PPO`, `DQN`, `A2C`, and registered `SAC`;
+- project defaults plus flat or per-algorithm hyperparameter overrides;
+- Stable-Baselines `DummyVecEnv` creation;
+- model training with `total_timesteps`;
+- model persistence as `.zip` artifacts in the simulation output directory.
+
+`PivotEnv` currently exposes `Discrete(5)` actions, so `PPO`, `DQN`, and `A2C`
+can be trained directly. `SAC` is available in the trainer registry, but the
+trainer blocks it with a clear validation error until a continuous `Box` action
+environment is added.
+
+Example override shape:
+
+```python
+from app.services.simulation_runner import run_simulation
+
+result = run_simulation({
+    "symbol": "EURUSD=X",
+    "train_lstm": False,
+    "train_rl": True,
+    "rl_algorithm": "PPO",
+    "rl_total_timesteps": 10_000,
+    "algo_hyperparams": {
+        "PPO": {"learning_rate": 0.0001, "n_steps": 512, "batch_size": 64}
+    },
+    "rl_model_name": "ppo_eurusd_pivot",
+})
+print(result.model_path)
+```

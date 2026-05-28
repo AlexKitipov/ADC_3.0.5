@@ -5,13 +5,21 @@ __all__ = [
     "SimulationResult",
     "SimulationRunner",
     "run_simulation",
+    "RLTrainer",
+    "RLTrainingConfig",
+    "RLTrainingResult",
 ]
 
 
 def __getattr__(name: str):
-    """Lazily expose the simulation runner without importing ML deps eagerly."""
+    """Lazily expose service classes without importing ML deps eagerly."""
 
-    if name in __all__:
+    if name in {
+        "SimulationParameters",
+        "SimulationResult",
+        "SimulationRunner",
+        "run_simulation",
+    }:
         from app.services.simulation_runner import (
             SimulationParameters,
             SimulationResult,
@@ -26,4 +34,15 @@ def __getattr__(name: str):
             "run_simulation": run_simulation,
         }
         return exports[name]
+
+    if name in {"RLTrainer", "RLTrainingConfig", "RLTrainingResult"}:
+        from app.services.rl_trainer import RLTrainer, RLTrainingConfig, RLTrainingResult
+
+        exports = {
+            "RLTrainer": RLTrainer,
+            "RLTrainingConfig": RLTrainingConfig,
+            "RLTrainingResult": RLTrainingResult,
+        }
+        return exports[name]
+
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
