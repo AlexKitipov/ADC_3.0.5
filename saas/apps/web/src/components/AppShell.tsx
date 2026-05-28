@@ -3,7 +3,7 @@ import { NavLink, Outlet } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 
 const navItems = [
-  { to: '/', label: 'Dashboard', icon: BarChart3 },
+  { to: '/dashboard', label: 'Dashboard', icon: BarChart3 },
   { to: '/signals', label: 'Signals', icon: Zap },
   { to: '/trades', label: 'Trades', icon: Activity },
   { to: '/settings', label: 'Settings', icon: Settings },

@@ -26,7 +26,7 @@ export function AuthPage({ mode }: AuthPageProps) {
     } else {
       await login(username, password);
     }
-    navigate('/');
+    navigate('/dashboard');
   };
 
   return (
