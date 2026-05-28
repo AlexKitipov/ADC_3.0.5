@@ -79,6 +79,8 @@ def test_runner_persists_outputs_without_heavy_training(tmp_path: Path) -> None:
     assert Path(result.trades_path).exists()
     assert Path(result.rewards_path).exists()
     assert Path(result.performance_path).exists()
+    assert Path(result.equity_curve_path).exists()
+    assert Path(result.drawdown_path).exists()
     assert result.performance["symbol"] == "TEST"
     assert result.performance["total_trades"] >= 0
 
