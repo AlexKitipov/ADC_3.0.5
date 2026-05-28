@@ -13,6 +13,7 @@ from app.api.v1.endpoints import (
 )
 from app.core.config import settings
 from app.db import Base, engine
+import app.models  # noqa: F401 - register SQLAlchemy models before create_all
 from app.workers import celery_app
 
 
