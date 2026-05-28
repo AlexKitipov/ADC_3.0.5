@@ -9,3 +9,7 @@ This package contains the core trading logic extracted from the notebook:
 """
 
 __version__ = "1.0.0"
+
+from .indicators import TechnicalIndicators
+
+__all__ = ["TechnicalIndicators"]
