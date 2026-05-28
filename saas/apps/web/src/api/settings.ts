@@ -3,6 +3,6 @@ import { UserSettings } from '../types';
 
 export const settingsAPI = {
   getUserSettings: () => client.get<UserSettings | null>('/settings/user-settings'),
-  updateUserSettings: (settings: UserSettings) =>
+  updateUserSettings: (settings: Partial<UserSettings>) =>
     client.put<{ message: string }>('/settings/user-settings', settings),
 };
