@@ -12,4 +12,13 @@ __version__ = "1.0.0"
 
 from .indicators import TechnicalIndicators
 
-__all__ = ["TechnicalIndicators"]
+__all__ = ["TechnicalIndicators", "LSTMPriceGenerator"]
+
+
+def __getattr__(name: str):
+    """Lazily load optional heavy core modules."""
+    if name == "LSTMPriceGenerator":
+        from .lstm_model import LSTMPriceGenerator
+
+        return LSTMPriceGenerator
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
