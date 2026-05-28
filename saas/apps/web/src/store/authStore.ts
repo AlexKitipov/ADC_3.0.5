@@ -11,12 +11,22 @@ interface AuthState {
   register: (email: string, username: string, password: string) => Promise<void>;
   loadCurrentUser: () => Promise<void>;
   logout: () => void;
+  setUser: (user: User) => void;
 }
 
 const getInitialToken = () => localStorage.getItem('access_token');
 
+const getInitialUser = () => {
+  const storedUser = localStorage.getItem('user');
+  if (!storedUser) {
+    return null;
+  }
+
+  return JSON.parse(storedUser) as User;
+};
+
 export const useAuthStore = create<AuthState>((set) => ({
-  user: null,
+  user: getInitialUser(),
   token: getInitialToken(),
   isLoading: false,
   error: null,
@@ -27,6 +37,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       const { data } = await authAPI.login(username, password);
       localStorage.setItem('access_token', data.access_token);
       const userResponse = await authAPI.getCurrentUser();
+      localStorage.setItem('user', JSON.stringify(userResponse.data));
       set({ token: data.access_token, user: userResponse.data, isLoading: false });
     } catch (error) {
       set({ error: 'Unable to sign in with those credentials.', isLoading: false });
@@ -41,6 +52,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       const { data } = await authAPI.login(username, password);
       localStorage.setItem('access_token', data.access_token);
       const userResponse = await authAPI.getCurrentUser();
+      localStorage.setItem('user', JSON.stringify(userResponse.data));
       set({ token: data.access_token, user: userResponse.data, isLoading: false });
     } catch (error) {
       set({ error: 'Unable to create an account.', isLoading: false });
@@ -58,9 +70,11 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ isLoading: true, error: null, token });
     try {
       const { data } = await authAPI.getCurrentUser();
+      localStorage.setItem('user', JSON.stringify(data));
       set({ user: data, isLoading: false });
     } catch (error) {
       localStorage.removeItem('access_token');
+      localStorage.removeItem('user');
       set({ user: null, token: null, isLoading: false, error: 'Session expired.' });
       throw error;
     }
@@ -68,6 +82,12 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   logout: () => {
     localStorage.removeItem('access_token');
+    localStorage.removeItem('user');
     set({ user: null, token: null, error: null });
+  },
+
+  setUser: (user) => {
+    localStorage.setItem('user', JSON.stringify(user));
+    set({ user });
   },
 }));
