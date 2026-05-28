@@ -5,6 +5,7 @@ interface StatCardProps {
   value: string;
   icon: LucideIcon;
   tone?: 'blue' | 'green' | 'red' | 'amber';
+  trend?: 'up' | 'down';
 }
 
 const toneClasses = {
@@ -14,7 +15,13 @@ const toneClasses = {
   amber: 'bg-amber-500/10 text-amber-300',
 };
 
-export function StatCard({ label, value, icon: Icon, tone = 'blue' }: StatCardProps) {
+export function StatCard({
+  label,
+  value,
+  icon: Icon,
+  tone = 'blue',
+  trend,
+}: StatCardProps) {
   return (
     <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 shadow-xl shadow-slate-950/20">
       <div className="flex items-center justify-between">
@@ -23,7 +30,16 @@ export function StatCard({ label, value, icon: Icon, tone = 'blue' }: StatCardPr
           <Icon size={18} />
         </span>
       </div>
-      <p className="mt-4 text-2xl font-bold text-white">{value}</p>
+      <div className="mt-4 flex items-end justify-between gap-3">
+        <p className="text-2xl font-bold text-white">{value}</p>
+        {trend && (
+          <span
+            className={`text-sm font-medium ${trend === 'up' ? 'text-emerald-300' : 'text-rose-300'}`}
+          >
+            {trend === 'up' ? '↑ up' : '↓ down'}
+          </span>
+        )}
+      </div>
     </div>
   );
 }

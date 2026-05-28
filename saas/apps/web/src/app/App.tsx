@@ -22,7 +22,8 @@ export function App() {
       <Route path="/register" element={<AuthPage mode="register" />} />
       <Route element={<ProtectedRoute />}>
         <Route element={<AppShell />}>
-          <Route index element={<DashboardPage />} />
+          <Route index element={<Navigate to="/dashboard" replace />} />
+          <Route path="dashboard" element={<DashboardPage />} />
           <Route path="signals" element={<SignalsPage />} />
           <Route path="trades" element={<TradesPage />} />
           <Route path="settings" element={<SettingsPage />} />
