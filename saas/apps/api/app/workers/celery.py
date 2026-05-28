@@ -1,16 +1,13 @@
 """Celery application configuration and background tasks."""
 
 from datetime import datetime
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
-import smtplib
-
 from celery import Celery
 import yfinance as yf
 from ta.momentum import RSIIndicator
 from ta.trend import MACD
 
 from app.core.config import settings
+from app.services.notifications import NotificationService
 from app.db.session import SessionLocal
 from app.models import EquitySnapshot, Trade
 
@@ -71,25 +68,24 @@ def run_trading_engine(user_id: int, symbol: str, timeframe: str) -> dict[str, o
 
 @celery_app.task
 def send_email_notification(
-    user_email: str, subject: str, body: str
-) -> dict[str, str]:
-    """Send an HTML email notification to a user."""
+    user_email: str,
+    subject: str,
+    body: str,
+    attachments: list[str] | None = None,
+) -> dict[str, object]:
+    """Send an HTML email notification to a user with optional attachments."""
 
     try:
-        msg = MIMEMultipart()
-        msg["From"] = settings.FROM_EMAIL
-        msg["To"] = user_email
-        msg["Subject"] = subject
-        msg.attach(MIMEText(body, "html"))
-
-        with smtplib.SMTP(settings.SMTP_SERVER, settings.SMTP_PORT) as server:
-            server.starttls()
-            server.login(settings.SMTP_USERNAME, settings.SMTP_PASSWORD)
-            server.send_message(msg)
-
-        return {"status": "sent"}
+        result = NotificationService(settings=settings).send_email(
+            recipients=user_email,
+            subject=subject,
+            body=body,
+            html_body=body,
+            attachments=attachments,
+        )
+        return result.to_dict()
     except Exception as exc:  # pragma: no cover - task errors are returned to callers.
-        return {"error": str(exc)}
+        return {"status": "error", "error": str(exc)}
 
 
 @celery_app.task

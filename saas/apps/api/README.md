@@ -74,6 +74,35 @@ Production-style runs can leave `train_lstm=True` and `train_rl=True` and tune
 `rl_algorithm`, `rl_total_timesteps`, `algo_hyperparams`, and the pivot-grid
 parameters exposed by `SimulationParameters`.
 
+## Notification service
+
+`app/services/notifications.py` provides the backend notification layer for
+email delivery, file attachments, and completed simulation result messages. It
+uses the existing SMTP environment settings (`SMTP_SERVER`, `SMTP_PORT`,
+`SMTP_USERNAME`, `SMTP_PASSWORD`, `FROM_EMAIL`) plus `SMTP_TIMEOUT` and
+`SMTP_USE_TLS`. Missing attachment files are skipped and reported in the
+structured delivery result instead of failing the whole message.
+
+Example usage after a simulation run:
+
+```python
+from app.services.notifications import NotificationService
+from app.services.simulation_runner import run_simulation
+
+result = run_simulation({
+    "symbol": "EURUSD=X",
+    "output_dir": "simulation_output",
+    "train_lstm": False,
+    "train_rl": False,
+})
+
+delivery = NotificationService().notify_simulation_results(
+    recipients="trader@example.com",
+    simulation_result=result,
+)
+print(delivery.to_dict())
+```
+
 ## RL trainer module
 
 `app/services/rl_trainer.py` is the standalone reinforcement-learning training

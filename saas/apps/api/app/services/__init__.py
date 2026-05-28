@@ -8,6 +8,10 @@ __all__ = [
     "RLTrainer",
     "RLTrainingConfig",
     "RLTrainingResult",
+    "NotificationAttachment",
+    "NotificationDeliveryResult",
+    "NotificationError",
+    "NotificationService",
 ]
 
 
@@ -42,6 +46,27 @@ def __getattr__(name: str):
             "RLTrainer": RLTrainer,
             "RLTrainingConfig": RLTrainingConfig,
             "RLTrainingResult": RLTrainingResult,
+        }
+        return exports[name]
+
+    if name in {
+        "NotificationAttachment",
+        "NotificationDeliveryResult",
+        "NotificationError",
+        "NotificationService",
+    }:
+        from app.services.notifications import (
+            NotificationAttachment,
+            NotificationDeliveryResult,
+            NotificationError,
+            NotificationService,
+        )
+
+        exports = {
+            "NotificationAttachment": NotificationAttachment,
+            "NotificationDeliveryResult": NotificationDeliveryResult,
+            "NotificationError": NotificationError,
+            "NotificationService": NotificationService,
         }
         return exports[name]
 

@@ -26,6 +26,8 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     SMTP_SERVER: str = "smtp.gmail.com"
     SMTP_PORT: int = 587
+    SMTP_TIMEOUT: int = 30
+    SMTP_USE_TLS: bool = True
     SMTP_USERNAME: str = "your-email@gmail.com"
     SMTP_PASSWORD: str = "your-app-password"
     FROM_EMAIL: str = "noreply@adctrading.com"
