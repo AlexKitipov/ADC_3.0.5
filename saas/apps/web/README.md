@@ -1,10 +1,12 @@
-# Web App
+# ADC Trading Frontend
 
-Frontend application shell for ADC SaaS.
+Vite-powered React frontend for the ADC Trading Platform.
 
-Planned responsibilities:
+## Available scripts
 
-- Authentication screens and protected dashboard routes
-- Strategy archive and experiment views
-- Backtest metrics, equity curves, and drawdown dashboards
-- Billing and subscription management UI
+- `npm run dev` starts the Vite development server.
+- `npm run build` compiles TypeScript and creates a production build.
+- `npm run preview` serves the production build locally.
+- `npm run lint` runs ESLint across TypeScript and React source files.
+
+Set `VITE_API_URL` to point the frontend at a non-local backend. It defaults to `http://localhost:8000/api`.
