@@ -9,7 +9,6 @@ charts under a single output directory.
 
 from __future__ import annotations
 
-import json
 import logging
 from dataclasses import asdict, dataclass, field
 from importlib import import_module
@@ -23,6 +22,7 @@ from app.services.data_loader import DataLoader
 from app.services.order_management import MockBrokerAPI, OrderManager
 from app.services.pivot_env import PivotEnv
 from app.services.rl_trainer import RLTrainer, RLTrainingConfig
+from app.services.trade_journal import TradeJournal
 from core.indicators import TechnicalIndicators
 from core.lstm_model import LSTMPriceGenerator
 
@@ -161,6 +161,8 @@ class SimulationResult:
     trades_path: str
     performance_path: str
     rewards_path: str
+    equity_curve_path: str
+    drawdown_path: str
     model_path: Optional[str]
     equity_chart_path: Optional[str]
     drawdown_chart_path: Optional[str]
@@ -199,11 +201,8 @@ class SimulationRunner:
 
         self._log(f"Starting simulation for {config.symbol} ({config.timeframe}).")
         output_dir = Path(config.output_dir)
-        journal_dir = output_dir / "TradeJournal"
-        charts_dir = journal_dir / "charts"
-        output_dir.mkdir(parents=True, exist_ok=True)
-        journal_dir.mkdir(parents=True, exist_ok=True)
-        charts_dir.mkdir(parents=True, exist_ok=True)
+        trade_journal = TradeJournal(output_dir)
+        journal_paths = trade_journal.ensure_directories()
 
         loader = self.data_loader or DataLoader(config.alpha_vantage_api_key)
         raw_data = loader.fetch_data(
@@ -224,16 +223,7 @@ class SimulationRunner:
         model, model_path = self._train_rl_agent(historical_df, generated_df, config, output_dir)
         evaluation = self._evaluate_policy(historical_df, generated_df, config, model)
 
-        orders_path = output_dir / "pending_orders_v2.csv"
-        trades_path = journal_dir / "trades_v2.csv"
-        rewards_path = journal_dir / "rewards_v2.csv"
-        performance_path = journal_dir / "performance_v2.json"
-
-        evaluation["orders"].to_csv(orders_path, index=False)
-        evaluation["trades"].to_csv(trades_path, index=False)
-        evaluation["rewards"].to_csv(rewards_path, index=False)
-
-        performance = self._calculate_performance(evaluation["trades"], evaluation["equity_curve"])
+        performance = trade_journal.calculate_performance(evaluation["trades"], evaluation["equity_curve"])
         performance.update(
             {
                 "symbol": config.symbol,
@@ -243,13 +233,21 @@ class SimulationRunner:
                 "trained_rl": model is not None,
             }
         )
-        performance_path.write_text(json.dumps(performance, indent=2), encoding="utf-8")
+        trade_journal.save_report(
+            trades=evaluation["trades"],
+            pending_orders=evaluation["pending_orders"],
+            equity_curve=evaluation["equity_curve"],
+            drawdown=evaluation["drawdown"],
+            rewards=evaluation["rewards"],
+            performance=performance,
+            actions=evaluation["orders"],
+        )
 
         equity_chart_path = None
         drawdown_chart_path = None
         if config.save_charts:
             equity_chart_path, drawdown_chart_path = self._save_charts(
-                evaluation["equity_curve"], evaluation["drawdown"], charts_dir
+                evaluation["equity_curve"], evaluation["drawdown"], journal_paths
             )
 
         self._log("Simulation complete; artifacts saved.")
@@ -257,10 +255,12 @@ class SimulationRunner:
             output_dir=str(output_dir),
             historical_data_path=str(historical_data_path),
             generated_data_path=str(generated_data_path),
-            orders_path=str(orders_path),
-            trades_path=str(trades_path),
-            performance_path=str(performance_path),
-            rewards_path=str(rewards_path),
+            orders_path=str(journal_paths.pending_orders_path),
+            trades_path=str(journal_paths.trades_path),
+            performance_path=str(journal_paths.performance_path),
+            rewards_path=str(journal_paths.rewards_path),
+            equity_curve_path=str(journal_paths.equity_curve_path),
+            drawdown_path=str(journal_paths.drawdown_path),
             model_path=str(model_path) if model_path else None,
             equity_chart_path=str(equity_chart_path) if equity_chart_path else None,
             drawdown_chart_path=str(drawdown_chart_path) if drawdown_chart_path else None,
@@ -476,12 +476,14 @@ class SimulationRunner:
                 break
 
         trades = pd.DataFrame(env.closed_trades)
+        pending_orders = pd.DataFrame(env.pending_orders)
         orders = pd.DataFrame(records)
         rewards = pd.DataFrame(reward_records)
         equity_curve = pd.Series(env.equity_history, dtype="float64")
-        drawdown = self._calculate_drawdown(equity_curve)
+        drawdown = self._reporting_journal().calculate_drawdown(equity_curve)
         return {
             "orders": orders,
+            "pending_orders": pending_orders,
             "trades": trades,
             "rewards": rewards,
             "equity_curve": equity_curve,
@@ -489,46 +491,20 @@ class SimulationRunner:
             "total_steps": len(reward_records),
         }
 
-    def _calculate_performance(self, trades_df: pd.DataFrame, equity_curve: pd.Series) -> dict[str, Any]:
-        drawdown = self._calculate_drawdown(equity_curve)
-        max_drawdown = float(drawdown.min()) if not drawdown.empty else 0.0
-        performance: dict[str, Any] = {
-            "total_trades": int(len(trades_df)),
-            "max_drawdown": max_drawdown,
-            "final_equity": float(equity_curve.iloc[-1]) if not equity_curve.empty else 0.0,
-        }
-        if trades_df.empty or "pnl" not in trades_df.columns:
-            performance.update({"win_rate": 0.0, "avg_profit": 0.0, "avg_loss": 0.0, "expectancy": 0.0})
-            return performance
 
-        pnl = pd.to_numeric(trades_df["pnl"], errors="coerce").fillna(0.0)
-        winning = pnl[pnl > 0]
-        losing = pnl[pnl < 0]
-        win_rate = float(len(winning) / len(pnl)) if len(pnl) else 0.0
-        avg_profit = float(winning.mean()) if not winning.empty else 0.0
-        avg_loss = float(losing.mean()) if not losing.empty else 0.0
-        performance.update(
-            {
-                "win_rate": win_rate,
-                "avg_profit": avg_profit,
-                "avg_loss": avg_loss,
-                "expectancy": (win_rate * avg_profit) + ((1 - win_rate) * avg_loss),
-            }
-        )
-        return performance
+    def _reporting_journal(self) -> TradeJournal:
+        """Return an in-memory journal helper for calculations only."""
 
-    def _calculate_drawdown(self, equity_curve: pd.Series) -> pd.Series:
-        if equity_curve.empty:
-            return pd.Series(dtype="float64")
-        roll_max = equity_curve.cummax().replace(0, np.nan)
-        return ((equity_curve - roll_max) / roll_max).fillna(0.0)
+        return TradeJournal(".")
 
-    def _save_charts(self, equity_curve: pd.Series, drawdown: pd.Series, charts_dir: Path) -> tuple[Path | None, Path | None]:
+    def _save_charts(
+        self, equity_curve: pd.Series, drawdown: pd.Series, journal_paths: Any
+    ) -> tuple[Path | None, Path | None]:
         if equity_curve.empty:
             return None, None
         pyplot = import_module("matplotlib.pyplot")
-        equity_path = charts_dir / "equity_curve_v2.png"
-        drawdown_path = charts_dir / "drawdown_v2.png"
+        equity_path = journal_paths.equity_chart_path
+        drawdown_path = journal_paths.drawdown_chart_path
 
         pyplot.figure(figsize=(12, 6))
         equity_curve.plot(title="Equity Curve")
