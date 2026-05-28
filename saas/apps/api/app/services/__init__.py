@@ -2,6 +2,8 @@
 
 __all__ = [
     "SimulationParameters",
+    "ParameterSpec",
+    "strategy_parameter_specs",
     "SimulationResult",
     "SimulationRunner",
     "run_simulation",
@@ -20,6 +22,8 @@ def __getattr__(name: str):
 
     if name in {
         "SimulationParameters",
+        "ParameterSpec",
+        "strategy_parameter_specs",
         "SimulationResult",
         "SimulationRunner",
         "run_simulation",
@@ -30,9 +34,12 @@ def __getattr__(name: str):
             SimulationRunner,
             run_simulation,
         )
+        from app.services.strategy_settings import ParameterSpec, strategy_parameter_specs
 
         exports = {
             "SimulationParameters": SimulationParameters,
+            "ParameterSpec": ParameterSpec,
+            "strategy_parameter_specs": strategy_parameter_specs,
             "SimulationResult": SimulationResult,
             "SimulationRunner": SimulationRunner,
             "run_simulation": run_simulation,

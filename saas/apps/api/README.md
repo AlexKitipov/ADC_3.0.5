@@ -74,6 +74,38 @@ Production-style runs can leave `train_lstm=True` and `train_rl=True` and tune
 `rl_algorithm`, `rl_total_timesteps`, `algo_hyperparams`, and the pivot-grid
 parameters exposed by `SimulationParameters`.
 
+## Strategy settings module
+
+`app/services/strategy_settings.py` is the backend replacement for the Colab
+widget parameter dictionaries. It centralizes the simulation configuration by:
+
+- defining typed `SimulationParameters` for data loading, LSTM generation, RL
+  training, pivot-grid rules, adaptive averaging, filters, output settings, and
+  smoke-test flags;
+- accepting README/widget aliases such as `ppo_total_timesteps`, `base_path`,
+  `alpha_key`, and `balance`;
+- coercing API payload values into the expected Python types and validating
+  supported timeframes, RL algorithms, date ordering, and numeric ranges;
+- exposing `env_kwargs()` and `to_rl_training_config()` so the simulation runner
+  can prepare `PivotEnv` and `RLTrainer` without duplicating parameter lists;
+- exposing `strategy_parameter_specs()` metadata for future API/UI forms.
+
+Example:
+
+```python
+from app.services.strategy_settings import SimulationParameters
+
+params = SimulationParameters.from_mapping({
+    "symbol": "EURUSD=X",
+    "ppo_total_timesteps": 10_000,
+    "balance": 25_000,
+    "grid_levels": 3,
+    "train_lstm": False,
+    "train_rl": False,
+})
+print(params.env_kwargs())
+```
+
 ## Notification service
 
 `app/services/notifications.py` provides the backend notification layer for
