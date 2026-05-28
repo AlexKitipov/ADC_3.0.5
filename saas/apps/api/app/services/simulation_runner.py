@@ -10,7 +10,7 @@ charts under a single output directory.
 from __future__ import annotations
 
 import logging
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass
 from importlib import import_module
 from pathlib import Path
 from typing import Any, Callable, Mapping, Optional
@@ -21,7 +21,8 @@ import pandas as pd
 from app.services.data_loader import DataLoader
 from app.services.order_management import MockBrokerAPI, OrderManager
 from app.services.pivot_env import PivotEnv
-from app.services.rl_trainer import RLTrainer, RLTrainingConfig
+from app.services.rl_trainer import RLTrainer
+from app.services.strategy_settings import SimulationParameters
 from app.services.trade_journal import TradeJournal
 from core.indicators import TechnicalIndicators
 from core.lstm_model import LSTMPriceGenerator
@@ -51,103 +52,6 @@ ACTION_LABELS = {
     3: "Buy Market",
     4: "Sell Market",
 }
-
-
-@dataclass(slots=True)
-class SimulationParameters:
-    """All tunable inputs for one simulation run.
-
-    Defaults mirror the notebook controls where practical, while adding flags
-    that make automated tests and quick smoke runs possible without heavy ML
-    training.
-    """
-
-    symbol: str = "TSLA"
-    timeframe: str = "1d"
-    start_date: Optional[str] = None
-    end_date: Optional[str] = None
-    alpha_vantage_api_key: Optional[str] = None
-    output_dir: str = "simulation_output"
-
-    sequence_length: int = 60
-    generated_steps: Optional[int] = None
-    lstm_epochs: int = 50
-    lstm_batch_size: int = 64
-    lstm_learning_rate: float = 0.001
-    lstm_units_1: int = 64
-    lstm_units_2: int = 32
-    train_lstm: bool = True
-
-    rl_algorithm: str = "PPO"
-    rl_total_timesteps: int = 50_000
-    algo_hyperparams: dict[str, Any] = field(default_factory=dict)
-    rl_policy: str = "MlpPolicy"
-    rl_model_name: Optional[str] = None
-    rl_verbose: int = 0
-    rl_device: str = "auto"
-    train_rl: bool = True
-    evaluate_deterministic: bool = True
-
-    grid_levels: int = 3
-    grid_step_pct: float = 0.005
-    martingale_factor: float = 1.1
-    max_total_exposure: float = 10.0
-    grid_tp_multiplier: float = 1.5
-    grid_sl_multiplier: float = 1.0
-    base_position_size: float = 1.0
-    volatility_inverse_factor: float = 0.01
-    drawdown_penalty_percentage: float = 0.05
-    drawdown_high_watermark_bonus: float = 0.005
-    transaction_cost_pct: float = 0.0005
-    time_decay_threshold_steps: int = 5
-    time_decay_penalty_per_step: float = -0.02
-    profit_threshold_for_decay: float = 0.01
-    early_exit_lookahead_steps: int = 5
-    early_exit_reward_factor: float = 0.5
-    early_exit_pnl_threshold_pct: float = 0.001
-    adaptive_averaging_enabled: bool = False
-    averaging_trigger_pct: float = 0.01
-    max_averaging_levels: int = 2
-    averaging_step_pct: float = 0.005
-    averaging_tp_sl_mode: str = "consolidated"
-    averaging_volatility_threshold_atr: float = 0.5
-    max_averaging_drawdown_pct: float = 0.05
-    dynamic_martingale_rsi_extreme_threshold: int = 20
-    dynamic_martingale_macd_neutral_threshold: float = 0.01
-    averaging_tp_improvement_factor: float = 0.001
-    averaging_bonus_factor: float = 0.1
-    averaging_penalty_factor: float = -0.05
-    atr_filter_threshold: float = 0.0
-    bb_width_filter_threshold: float = 0.0
-    macd_signal_coincide_threshold: float = 0.0
-    rsi_oversold_bonus_threshold: int = 30
-    rsi_overbought_bonus_threshold: int = 70
-    macd_strong_trend_threshold: float = 0.0
-    rsi_extreme_threshold: int = 0
-    macd_cross_threshold: float = 0.0
-
-    save_charts: bool = True
-    random_seed: Optional[int] = None
-
-    @classmethod
-    def from_mapping(cls, params: Mapping[str, Any] | None = None) -> "SimulationParameters":
-        """Build parameters from a dict, ignoring unknown UI-only keys."""
-
-        if params is None:
-            return cls()
-
-        aliases = {
-            "ppo_total_timesteps": "rl_total_timesteps",
-            "alpha_key": "alpha_vantage_api_key",
-            "base_path": "output_dir",
-        }
-        fields = cls.__dataclass_fields__
-        normalized: dict[str, Any] = {}
-        for key, value in params.items():
-            target = aliases.get(key, key)
-            if target in fields:
-                normalized[target] = value
-        return cls(**normalized)
 
 
 @dataclass(slots=True)
@@ -200,7 +104,7 @@ class SimulationRunner:
             np.random.seed(config.random_seed)
 
         self._log(f"Starting simulation for {config.symbol} ({config.timeframe}).")
-        output_dir = Path(config.output_dir)
+        output_dir = config.ensure_output_dir()
         trade_journal = TradeJournal(output_dir)
         journal_paths = trade_journal.ensure_directories()
 
@@ -365,49 +269,13 @@ class SimulationRunner:
         return historical_df.iloc[:min_length].copy(), generated_df.iloc[:min_length].copy()
 
     def _make_env(self, historical_df: pd.DataFrame, generated_df: pd.DataFrame, config: SimulationParameters) -> PivotEnv:
-        env_kwargs = {
-            key: getattr(config, key)
-            for key in [
-                "grid_levels",
-                "grid_step_pct",
-                "martingale_factor",
-                "max_total_exposure",
-                "grid_tp_multiplier",
-                "grid_sl_multiplier",
-                "base_position_size",
-                "volatility_inverse_factor",
-                "drawdown_penalty_percentage",
-                "drawdown_high_watermark_bonus",
-                "transaction_cost_pct",
-                "time_decay_threshold_steps",
-                "time_decay_penalty_per_step",
-                "profit_threshold_for_decay",
-                "early_exit_lookahead_steps",
-                "early_exit_reward_factor",
-                "early_exit_pnl_threshold_pct",
-                "adaptive_averaging_enabled",
-                "averaging_trigger_pct",
-                "max_averaging_levels",
-                "averaging_step_pct",
-                "averaging_tp_sl_mode",
-                "averaging_volatility_threshold_atr",
-                "max_averaging_drawdown_pct",
-                "dynamic_martingale_rsi_extreme_threshold",
-                "dynamic_martingale_macd_neutral_threshold",
-                "averaging_tp_improvement_factor",
-                "averaging_bonus_factor",
-                "averaging_penalty_factor",
-                "atr_filter_threshold",
-                "bb_width_filter_threshold",
-                "macd_signal_coincide_threshold",
-                "rsi_oversold_bonus_threshold",
-                "rsi_overbought_bonus_threshold",
-                "macd_strong_trend_threshold",
-                "rsi_extreme_threshold",
-                "macd_cross_threshold",
-            ]
-        }
-        return PivotEnv(historical_df, generated_df, self.broker_api, self.order_manager, **env_kwargs)
+        return PivotEnv(
+            historical_df,
+            generated_df,
+            self.broker_api,
+            self.order_manager,
+            **config.env_kwargs(),
+        )
 
     def _train_rl_agent(
         self,
@@ -419,16 +287,7 @@ class SimulationRunner:
         if not config.train_rl:
             return None, None
 
-        training_config = RLTrainingConfig(
-            algorithm=config.rl_algorithm,
-            total_timesteps=config.rl_total_timesteps,
-            hyperparameters=config.algo_hyperparams,
-            policy=config.rl_policy,
-            model_name=config.rl_model_name,
-            seed=config.random_seed,
-            verbose=config.rl_verbose,
-            device=config.rl_device,
-        )
+        training_config = config.to_rl_training_config()
         trainer = RLTrainer(
             env_factory=lambda: self._make_env(historical_df, generated_df, config),
             output_dir=output_dir,

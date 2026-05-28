@@ -19,6 +19,7 @@ from gymnasium.spaces import Box, Discrete
 class PivotEnv(Env):
     def __init__(self, hist_df, gen_df,
                  broker_api, order_manager, # New parameters
+                 initial_balance=10000.0,
                  grid_levels=3,
                  grid_step_pct=0.005,
                  martingale_factor=1.1,
@@ -65,7 +66,8 @@ class PivotEnv(Env):
         self.observation_space = Box(low=-np.inf, high=np.inf, shape=(17,), dtype=np.float32)
         self.action_space = Discrete(5)
         self.rewards_history = []
-        self.balance = 10000.0
+        self.initial_balance = float(initial_balance)
+        self.balance = self.initial_balance
         self.open_trades = []
         self.pending_orders = []
         self.closed_trades = []
@@ -123,7 +125,7 @@ class PivotEnv(Env):
         self.rewards_history.clear()
         # When resetting, ensure balance reflects the overall simulation rather than just env's internal balance
         # For now, we'll keep the env's balance separate for internal reward calculation
-        self.balance = 10000.0 # Reset internal env balance
+        self.balance = self.initial_balance # Reset internal env balance
         self.open_trades = []
         self.pending_orders = []
         self.closed_trades = []
