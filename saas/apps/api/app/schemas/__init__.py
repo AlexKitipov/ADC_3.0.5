@@ -8,6 +8,12 @@ well-owned schema boundaries.
 
 from app.schemas.auth import Token, User, UserCreate
 from app.schemas.dashboard import DashboardStats, DrawdownCurvePoint, EquityCurvePoint
+from app.schemas.market_data import (
+    MarketDataQuery,
+    MarketDataResponse,
+    MarketDataTimeframe,
+    OHLCVRow,
+)
 from app.schemas.settings import UserSettings, UserSettingsBase, UserSettingsUpdate
 from app.schemas.simulations import (
     SimulationArtifact,
@@ -24,6 +30,10 @@ __all__ = [
     "DashboardStats",
     "DrawdownCurvePoint",
     "EquityCurvePoint",
+    "MarketDataQuery",
+    "MarketDataResponse",
+    "MarketDataTimeframe",
+    "OHLCVRow",
     "Signal",
     "SignalAction",
     "SignalCreate",
