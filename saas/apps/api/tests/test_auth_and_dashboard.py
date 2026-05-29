@@ -51,6 +51,33 @@ def test_register_login_and_me_round_trip() -> None:
     assert body["is_active"] is True
 
 
+def test_login_rejects_invalid_password() -> None:
+    payload = unique_user_payload()
+    register_response = client.post("/api/auth/register", json=payload)
+
+    response = client.post(
+        "/api/auth/login",
+        data={"username": payload["username"], "password": "wrong-password"},
+    )
+
+    assert register_response.status_code == 201
+    assert response.status_code == 401
+    assert response.json() == {"detail": "Invalid credentials"}
+
+
+def test_login_requires_oauth2_form_body() -> None:
+    payload = unique_user_payload()
+    register_response = client.post("/api/auth/register", json=payload)
+
+    response = client.post(
+        "/api/auth/login",
+        params={"username": payload["username"], "password": payload["password"]},
+    )
+
+    assert register_response.status_code == 201
+    assert response.status_code == 422
+
+
 def test_duplicate_registration_rejects_existing_email() -> None:
     payload = unique_user_payload()
     first_response = client.post("/api/auth/register", json=payload)
