@@ -131,6 +131,32 @@ export type TradeCloseRequest = TradeClose;
 export type EquityPoint = EquityCurvePoint;
 export type DrawdownPoint = DrawdownCurvePoint;
 
+
+// Market data schemas: apps/api/app/schemas/market_data.py
+export type MarketDataTimeframe = '1d' | '1min' | '5min' | '15min' | '30min' | '60min';
+
+export interface MarketDataRequest {
+  symbol: string;
+  timeframe: MarketDataTimeframe;
+  start_date?: string | null;
+  end_date?: string | null;
+}
+
+export interface OHLCVRow {
+  timestamp: string;
+  symbol: string;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+}
+
+export interface MarketDataResponse extends MarketDataRequest {
+  rows: OHLCVRow[];
+  row_count: number;
+}
+
 // Simulation schemas: apps/api/app/schemas/simulations.py
 export interface SimulationRequest {
   symbol?: string;

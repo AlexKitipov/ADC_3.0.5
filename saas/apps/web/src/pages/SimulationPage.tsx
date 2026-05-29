@@ -1,7 +1,8 @@
 import { FormEvent, useState } from 'react';
-import { AlertTriangle, CheckCircle2, FileText, Loader2, Play, XCircle } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, FileText, LineChart, Loader2, Play, Search, XCircle } from 'lucide-react';
+import { marketDataAPI } from '../api/marketData';
 import { simulationsAPI } from '../api/simulations';
-import type { SimulationArtifact, SimulationRequest, SimulationRun } from '../types';
+import type { MarketDataResponse, OHLCVRow, SimulationArtifact, SimulationRequest, SimulationRun } from '../types';
 
 const defaultForm: Required<Pick<
   SimulationRequest,
@@ -43,6 +44,9 @@ export function SimulationPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingArtifacts, setIsLoadingArtifacts] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [marketData, setMarketData] = useState<MarketDataResponse | null>(null);
+  const [marketDataError, setMarketDataError] = useState<string | null>(null);
+  const [isLoadingMarketData, setIsLoadingMarketData] = useState(false);
 
   const updateForm = <K extends keyof typeof defaultForm>(key: K, value: (typeof defaultForm)[K]) => {
     setForm((current) => ({ ...current, [key]: value }));
@@ -105,6 +109,26 @@ export function SimulationPage() {
     }
   };
 
+  const previewMarketData = async () => {
+    setIsLoadingMarketData(true);
+    setMarketDataError(null);
+    try {
+      const response = await marketDataAPI.getOHLCV({
+        symbol: form.symbol,
+        timeframe: form.timeframe as MarketDataResponse['timeframe'],
+        start_date: form.start_date || null,
+        end_date: form.end_date || null,
+      });
+      setMarketData(response.data);
+    } catch (previewError) {
+      console.error('Failed to preview market data:', previewError);
+      setMarketData(null);
+      setMarketDataError('Market data could not be loaded. Check the symbol, dates, timeframe, and provider settings.');
+    } finally {
+      setIsLoadingMarketData(false);
+    }
+  };
+
   return (
     <div className="space-y-8">
       <div>
@@ -154,6 +178,13 @@ export function SimulationPage() {
             <Toggle label="Save charts" checked={form.save_charts} onChange={(value) => updateForm('save_charts', value)} />
           </div>
 
+          <MarketDataPreview
+            data={marketData}
+            error={marketDataError}
+            isLoading={isLoadingMarketData}
+            onPreview={previewMarketData}
+          />
+
           {error && <StatusBanner tone="error" message={error} />}
 
           <button
@@ -173,6 +204,128 @@ export function SimulationPage() {
       </section>
     </div>
   );
+}
+
+function MarketDataPreview({
+  data,
+  error,
+  isLoading,
+  onPreview,
+}: {
+  data: MarketDataResponse | null;
+  error: string | null;
+  isLoading: boolean;
+  onPreview: () => void;
+}) {
+  const previewRows = data?.rows.slice(0, 6) ?? [];
+  const chartRows = data?.rows.slice(-24) ?? [];
+
+  return (
+    <div className="rounded-2xl border border-slate-800 bg-slate-950/50 p-5">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <div className="flex items-center gap-2 text-lg font-semibold text-white">
+            <LineChart className="h-5 w-5 text-brand-300" />
+            Market data preview
+          </div>
+          <p className="mt-1 text-sm text-slate-400">
+            Load backend-fetched OHLCV rows before running a simulation with the same symbol, timeframe, and date range.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onPreview}
+          disabled={isLoading}
+          className="inline-flex items-center justify-center gap-2 rounded-xl border border-brand-500/60 px-4 py-2 text-sm font-semibold text-brand-100 hover:bg-brand-500/10 disabled:cursor-not-allowed disabled:opacity-70"
+        >
+          {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+          {isLoading ? 'Loading...' : 'Preview data'}
+        </button>
+      </div>
+
+      {error && <div className="mt-4"><StatusBanner tone="error" message={error} /></div>}
+
+      {data && (
+        <div className="mt-5 space-y-4">
+          <div className="grid gap-3 sm:grid-cols-3">
+            <Metric label="Rows" value={data.row_count.toString()} />
+            <Metric label="Symbol" value={data.symbol} />
+            <Metric label="Timeframe" value={data.timeframe} />
+          </div>
+
+          <ClosePreviewChart rows={chartRows} />
+
+          <div className="overflow-x-auto rounded-xl border border-slate-800">
+            <table className="min-w-full divide-y divide-slate-800 text-sm">
+              <thead className="bg-slate-900/80 text-left text-xs uppercase tracking-wide text-slate-400">
+                <tr>
+                  <th className="px-3 py-2">Time</th>
+                  <th className="px-3 py-2">Open</th>
+                  <th className="px-3 py-2">High</th>
+                  <th className="px-3 py-2">Low</th>
+                  <th className="px-3 py-2">Close</th>
+                  <th className="px-3 py-2">Volume</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-800 text-slate-200">
+                {previewRows.map((row) => (
+                  <tr key={row.timestamp}>
+                    <td className="whitespace-nowrap px-3 py-2 text-slate-400">{formatTimestamp(row.timestamp)}</td>
+                    <td className="px-3 py-2">{formatNumber(row.open)}</td>
+                    <td className="px-3 py-2">{formatNumber(row.high)}</td>
+                    <td className="px-3 py-2">{formatNumber(row.low)}</td>
+                    <td className="px-3 py-2 font-medium text-white">{formatNumber(row.close)}</td>
+                    <td className="px-3 py-2">{formatNumber(row.volume, 0)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ClosePreviewChart({ rows }: { rows: OHLCVRow[] }) {
+  if (rows.length < 2) {
+    return <p className="text-sm text-slate-500">Load at least two rows to draw a close-price sparkline.</p>;
+  }
+
+  const closes = rows.map((row) => row.close);
+  const min = Math.min(...closes);
+  const max = Math.max(...closes);
+  const range = max - min || 1;
+  const points = rows
+    .map((row, index) => {
+      const x = (index / (rows.length - 1)) * 100;
+      const y = 100 - ((row.close - min) / range) * 100;
+      return `${x},${y}`;
+    })
+    .join(' ');
+
+  return (
+    <div className="rounded-xl border border-slate-800 bg-slate-950 p-3">
+      <div className="mb-2 flex items-center justify-between text-xs text-slate-400">
+        <span>Close preview</span>
+        <span>{formatNumber(min)} – {formatNumber(max)}</span>
+      </div>
+      <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="h-24 w-full overflow-visible">
+        <polyline points={points} fill="none" stroke="currentColor" strokeWidth="2" className="text-brand-300" vectorEffect="non-scaling-stroke" />
+      </svg>
+    </div>
+  );
+}
+
+function formatTimestamp(value: string) {
+  return new Intl.DateTimeFormat(undefined, {
+    dateStyle: 'short',
+    timeStyle: 'short',
+  }).format(new Date(value));
+}
+
+function formatNumber(value: number, maximumFractionDigits = 4) {
+  return new Intl.NumberFormat(undefined, { maximumFractionDigits }).format(value);
 }
 
 function ResultSummary({ simulation, onRefresh }: { simulation: SimulationRun | null; onRefresh: () => void }) {
