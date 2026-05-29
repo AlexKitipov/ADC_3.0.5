@@ -19,11 +19,11 @@ def register_and_login() -> str:
         "username": f"user_{suffix}",
         "password": "correct-horse-battery-staple",
     }
-    register_response = client.post("/api/auth/register", json=payload)
+    register_response = client.post("/api/v1/auth/register", json=payload)
     assert register_response.status_code == 201
 
     login_response = client.post(
-        "/api/auth/login",
+        "/api/v1/auth/login",
         data={"username": payload["username"], "password": payload["password"]},
     )
     assert login_response.status_code == 200
@@ -48,18 +48,18 @@ def test_signal_create_latest_and_symbol_filters_are_user_scoped() -> None:
     }
 
     create_response = client.post(
-        "/api/signals/create",
+        "/api/v1/signals/create",
         json=signal_payload,
         headers=auth_headers(first_token),
     )
     second_user_response = client.get(
-        "/api/signals/latest", headers=auth_headers(second_token)
+        "/api/v1/signals/latest", headers=auth_headers(second_token)
     )
     latest_response = client.get(
-        "/api/signals/latest", headers=auth_headers(first_token)
+        "/api/v1/signals/latest", headers=auth_headers(first_token)
     )
     symbol_response = client.get(
-        "/api/signals/by-symbol/EURUSD", headers=auth_headers(first_token)
+        "/api/v1/signals/by-symbol/EURUSD", headers=auth_headers(first_token)
     )
 
     assert create_response.status_code == 200
@@ -77,23 +77,23 @@ def test_trade_open_close_and_history_are_user_scoped() -> None:
     second_token = register_and_login()
 
     open_response = client.post(
-        "/api/trades/open",
+        "/api/v1/trades/open",
         json={"symbol": "BTCUSD", "entry_price": 100.0},
         headers=auth_headers(first_token),
     )
     trade_id = open_response.json()["id"]
     other_user_open_response = client.get(
-        "/api/trades/open", headers=auth_headers(second_token)
+        "/api/v1/trades/open", headers=auth_headers(second_token)
     )
     close_response = client.post(
-        f"/api/trades/close/{trade_id}?exit_price=112.0",
+        f"/api/v1/trades/close/{trade_id}?exit_price=112.0",
         headers=auth_headers(first_token),
     )
     open_trades_response = client.get(
-        "/api/trades/open", headers=auth_headers(first_token)
+        "/api/v1/trades/open", headers=auth_headers(first_token)
     )
     closed_trades_response = client.get(
-        "/api/trades/closed", headers=auth_headers(first_token)
+        "/api/v1/trades/closed", headers=auth_headers(first_token)
     )
 
     assert open_response.status_code == 200
@@ -114,14 +114,14 @@ def test_close_trade_rejects_trades_owned_by_other_users() -> None:
     first_token = register_and_login()
     second_token = register_and_login()
     open_response = client.post(
-        "/api/trades/open",
+        "/api/v1/trades/open",
         json={"symbol": "ETHUSD", "entry_price": 50.0},
         headers=auth_headers(first_token),
     )
     trade_id = open_response.json()["id"]
 
     close_response = client.post(
-        f"/api/trades/close/{trade_id}?exit_price=45.0",
+        f"/api/v1/trades/close/{trade_id}?exit_price=45.0",
         headers=auth_headers(second_token),
     )
 
@@ -144,12 +144,12 @@ def test_user_settings_can_be_created_and_read() -> None:
     }
 
     update_response = client.put(
-        "/api/settings/user-settings",
+        "/api/v1/settings/user-settings",
         json=payload,
         headers=auth_headers(token),
     )
     read_response = client.get(
-        "/api/settings/user-settings", headers=auth_headers(token)
+        "/api/v1/settings/user-settings", headers=auth_headers(token)
     )
 
     assert update_response.status_code == 200

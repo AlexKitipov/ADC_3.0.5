@@ -4,13 +4,6 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.v1.api import api_router
-from app.api.v1.endpoints import (
-    auth,
-    dashboard,
-    settings as settings_routes,
-    signals,
-    trades,
-)
 from app.core.config import settings
 from app.db import Base, engine
 import app.models  # noqa: F401 - register SQLAlchemy models before create_all
@@ -37,18 +30,9 @@ def create_app() -> FastAPI:
     )
 
     app.include_router(api_router, prefix="/api/v1")
-    app.include_router(auth.router, prefix="/api/auth", tags=["Auth"])
-    app.include_router(dashboard.router, prefix="/api/dashboard", tags=["Dashboard"])
-    app.include_router(signals.router, prefix="/api/signals", tags=["Signals"])
-    app.include_router(trades.router, prefix="/api/trades", tags=["Trades"])
-    app.include_router(settings_routes.router, prefix="/api/settings", tags=["Settings"])
-
-    @app.get("/api/health", tags=["Health"])
-    def health_check() -> dict[str, str]:
-        return {"status": "ok"}
 
     @app.get("/api/v1/health", tags=["Health"])
-    def versioned_health_check() -> dict[str, str]:
+    def health_check() -> dict[str, str]:
         return {"status": "ok"}
 
     app.state.celery_app = celery_app
