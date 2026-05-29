@@ -1,23 +1,11 @@
 import { FormEvent, useEffect, useState } from "react";
 import { settingsAPI } from "../api/settings";
 import { LoadingState } from "../components/LoadingState";
-import { UserSettings } from "../types";
-
-const defaultSettings: UserSettings = {
-  symbols: ["BTCUSDT", "ETHUSDT"],
-  timeframe: "1h",
-  balance: 10000,
-  risk_per_trade: 0.02,
-  grid_levels: 5,
-  grid_step_pct: 1,
-  martingale_factor: 1.5,
-  enable_trading: false,
-  email_notifications: true,
-};
+import { UserSettings, UserSettingsUpdate } from "../types";
 
 export function SettingsPage() {
   const [settings, setSettings] = useState<UserSettings | null>(null);
-  const [symbols, setSymbols] = useState(defaultSettings.symbols.join(", "));
+  const [symbols, setSymbols] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
@@ -26,9 +14,8 @@ export function SettingsPage() {
     settingsAPI
       .getUserSettings()
       .then((response) => {
-        const userSettings = response.data ?? defaultSettings;
-        setSettings(userSettings);
-        setSymbols(userSettings.symbols.join(", "));
+        setSettings(response.data);
+        setSymbols(response.data.symbols.join(", "));
       })
       .catch((fetchError) => {
         console.error("Failed to fetch settings:", fetchError);
@@ -46,7 +33,7 @@ export function SettingsPage() {
     return () => window.clearTimeout(timeoutId);
   }, [saved]);
 
-  const updateSettings = (nextSettings: Partial<UserSettings>) => {
+  const updateSettings = (nextSettings: Partial<UserSettingsUpdate>) => {
     setSettings((currentSettings) =>
       currentSettings
         ? { ...currentSettings, ...nextSettings }
@@ -61,17 +48,25 @@ export function SettingsPage() {
       return;
     }
 
-    const nextSettings = {
-      ...settings,
+    const nextSettings: UserSettingsUpdate = {
       symbols: symbols
         .split(",")
         .map((symbol) => symbol.trim())
         .filter(Boolean),
+      timeframe: settings.timeframe,
+      balance: settings.balance,
+      risk_per_trade: settings.risk_per_trade,
+      grid_levels: settings.grid_levels,
+      grid_step_pct: settings.grid_step_pct,
+      martingale_factor: settings.martingale_factor,
+      enable_trading: settings.enable_trading,
+      email_notifications: settings.email_notifications,
     };
 
     try {
-      await settingsAPI.updateUserSettings(nextSettings);
-      setSettings(nextSettings);
+      const response = await settingsAPI.updateUserSettings(nextSettings);
+      setSettings(response.data);
+      setSymbols(response.data.symbols.join(", "));
       setError(null);
       setSaved(true);
     } catch (saveError) {
@@ -138,10 +133,10 @@ export function SettingsPage() {
             onChange={(value) => updateSettings({ grid_levels: value })}
           />
           <NumberField
-            label="Grid Step %"
-            value={settings.grid_step_pct}
+            label="Grid Step (%)"
+            value={settings.grid_step_pct * 100}
             step="0.1"
-            onChange={(value) => updateSettings({ grid_step_pct: value })}
+            onChange={(value) => updateSettings({ grid_step_pct: value / 100 })}
           />
           <NumberField
             label="Martingale Factor"

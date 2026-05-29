@@ -2,10 +2,41 @@
 
 from datetime import datetime
 
-from sqlalchemy import JSON, Boolean, Column, DateTime, Float, ForeignKey, Integer, String
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    Column,
+    DateTime,
+    Float,
+    ForeignKey,
+    Integer,
+    String,
+)
 from sqlalchemy.orm import relationship
 
 from app.db.session import Base
+
+DEFAULT_USER_SETTINGS = {
+    "symbols": ["EURUSD", "GBPUSD"],
+    "timeframe": "1d",
+    "balance": 10000.0,
+    "risk_per_trade": 0.02,
+    "grid_levels": 3,
+    "grid_step_pct": 0.005,
+    "martingale_factor": 1.1,
+    "enable_trading": False,
+    "email_notifications": True,
+}
+
+
+def default_user_settings_values() -> dict[str, object]:
+    """Return a copy of the persisted default user settings values.
+
+    Percent-like values use decimal fraction semantics: ``0.02`` means 2% and
+    ``0.005`` means 0.5%.
+    """
+
+    return {**DEFAULT_USER_SETTINGS, "symbols": list(DEFAULT_USER_SETTINGS["symbols"])}
 
 
 class User(Base):
@@ -24,7 +55,9 @@ class User(Base):
         "UserSettings", back_populates="user", cascade="all, delete-orphan"
     )
     trades = relationship("Trade", back_populates="user", cascade="all, delete-orphan")
-    signals = relationship("Signal", back_populates="user", cascade="all, delete-orphan")
+    signals = relationship(
+        "Signal", back_populates="user", cascade="all, delete-orphan"
+    )
 
 
 class UserSettings(Base):
@@ -34,15 +67,33 @@ class UserSettings(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    symbols = Column(JSON, default=lambda: ["EURUSD", "GBPUSD"], nullable=False)
-    timeframe = Column(String, default="1d", nullable=False)
-    balance = Column(Float, default=10000.0, nullable=False)
-    risk_per_trade = Column(Float, default=0.02, nullable=False)
-    grid_levels = Column(Integer, default=3, nullable=False)
-    grid_step_pct = Column(Float, default=0.005, nullable=False)
-    martingale_factor = Column(Float, default=1.1, nullable=False)
-    enable_trading = Column(Boolean, default=False, nullable=False)
-    email_notifications = Column(Boolean, default=True, nullable=False)
+    symbols = Column(
+        JSON,
+        default=lambda: list(DEFAULT_USER_SETTINGS["symbols"]),
+        nullable=False,
+    )
+    timeframe = Column(
+        String, default=DEFAULT_USER_SETTINGS["timeframe"], nullable=False
+    )
+    balance = Column(Float, default=DEFAULT_USER_SETTINGS["balance"], nullable=False)
+    risk_per_trade = Column(
+        Float, default=DEFAULT_USER_SETTINGS["risk_per_trade"], nullable=False
+    )
+    grid_levels = Column(
+        Integer, default=DEFAULT_USER_SETTINGS["grid_levels"], nullable=False
+    )
+    grid_step_pct = Column(
+        Float, default=DEFAULT_USER_SETTINGS["grid_step_pct"], nullable=False
+    )
+    martingale_factor = Column(
+        Float, default=DEFAULT_USER_SETTINGS["martingale_factor"], nullable=False
+    )
+    enable_trading = Column(
+        Boolean, default=DEFAULT_USER_SETTINGS["enable_trading"], nullable=False
+    )
+    email_notifications = Column(
+        Boolean, default=DEFAULT_USER_SETTINGS["email_notifications"], nullable=False
+    )
 
     user = relationship("User", back_populates="settings")
 
@@ -102,4 +153,5 @@ __all__ = [
     "Trade",
     "User",
     "UserSettings",
+    "default_user_settings_values",
 ]
