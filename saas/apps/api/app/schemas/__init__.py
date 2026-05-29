@@ -2,7 +2,7 @@
 
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, EmailStr
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 
 class UserCreate(BaseModel):
@@ -90,35 +90,40 @@ class DashboardStats(BaseModel):
     monthly_pnl: float
 
 
-class UserSettings(BaseModel):
-    """Trading and notification settings response."""
+class UserSettingsBase(BaseModel):
+    """Shared trading and notification settings fields.
 
-    id: int
+    Percent-like values are stored as decimal fractions: ``0.02`` means 2% risk
+    per trade and ``0.005`` means a 0.5% grid step.
+    """
+
     symbols: list[str]
     timeframe: str
     balance: float
-    risk_per_trade: float
+    risk_per_trade: float = Field(
+        description="Decimal fraction risk per trade; 0.02 means 2%."
+    )
     grid_levels: int
-    grid_step_pct: float
+    grid_step_pct: float = Field(
+        description="Decimal fraction grid step; 0.005 means 0.5%."
+    )
     martingale_factor: float
     enable_trading: bool
     email_notifications: bool
+
+
+class UserSettings(UserSettingsBase):
+    """Trading and notification settings response."""
+
+    id: int
 
     model_config = ConfigDict(from_attributes=True)
 
 
-class UserSettingsUpdate(BaseModel):
-    """Payload for replacing user trading and notification preferences."""
+class UserSettingsUpdate(UserSettingsBase):
+    """Complete payload for replacing user trading and notification preferences."""
 
-    symbols: list[str]
-    timeframe: str
-    balance: float
-    risk_per_trade: float
-    grid_levels: int
-    grid_step_pct: float
-    martingale_factor: float
-    enable_trading: bool
-    email_notifications: bool
+    model_config = ConfigDict(extra="forbid")
 
 
 __all__ = [
@@ -131,5 +136,6 @@ __all__ = [
     "User",
     "UserCreate",
     "UserSettings",
+    "UserSettingsBase",
     "UserSettingsUpdate",
 ]

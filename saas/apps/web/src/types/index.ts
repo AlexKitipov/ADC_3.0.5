@@ -48,14 +48,20 @@ export interface DrawdownPoint {
   drawdown: number;
 }
 
-export interface UserSettings {
+export interface UserSettingsUpdate {
   symbols: string[];
   timeframe: string;
   balance: number;
+  /** Decimal fraction risk per trade; 0.02 means 2%. */
   risk_per_trade: number;
   grid_levels: number;
+  /** Decimal fraction grid step; 0.005 means 0.5%. */
   grid_step_pct: number;
   martingale_factor: number;
   enable_trading: boolean;
   email_notifications: boolean;
+}
+
+export interface UserSettings extends UserSettingsUpdate {
+  id: number;
 }

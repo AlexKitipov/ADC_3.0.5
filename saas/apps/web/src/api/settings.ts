@@ -1,8 +1,8 @@
 import client from './client';
-import { UserSettings } from '../types';
+import { UserSettings, UserSettingsUpdate } from '../types';
 
 export const settingsAPI = {
-  getUserSettings: () => client.get<UserSettings | null>('/settings/user-settings'),
-  updateUserSettings: (settings: Partial<UserSettings>) =>
-    client.put<{ message: string }>('/settings/user-settings', settings),
+  getUserSettings: () => client.get<UserSettings>('/settings/user-settings'),
+  updateUserSettings: (settings: UserSettingsUpdate) =>
+    client.put<UserSettings>('/settings/user-settings', settings),
 };
