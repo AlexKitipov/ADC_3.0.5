@@ -105,7 +105,8 @@ def test_trade_open_close_and_history_are_user_scoped() -> None:
         "/api/v1/trades/open", headers=auth_headers(second_token)
     )
     close_response = client.post(
-        f"/api/v1/trades/close/{trade_id}?exit_price=112.0",
+        f"/api/v1/trades/close/{trade_id}",
+        json={"exit_price": 112.0},
         headers=auth_headers(first_token),
     )
     open_trades_response = client.get(
@@ -140,12 +141,67 @@ def test_close_trade_rejects_trades_owned_by_other_users() -> None:
     trade_id = open_response.json()["id"]
 
     close_response = client.post(
-        f"/api/v1/trades/close/{trade_id}?exit_price=45.0",
+        f"/api/v1/trades/close/{trade_id}",
+        json={"exit_price": 45.0},
         headers=auth_headers(second_token),
     )
 
     assert close_response.status_code == 404
     assert close_response.json() == {"detail": "Trade not found"}
+
+
+def test_trade_open_and_close_contract_uses_json_request_bodies() -> None:
+    token = register_and_login()
+
+    invalid_open_response = client.post(
+        "/api/v1/trades/open",
+        json={"symbol": "BTCUSD", "entry_price": 0},
+        headers=auth_headers(token),
+    )
+    open_response = client.post(
+        "/api/v1/trades/open",
+        json={"symbol": "btcusd", "entry_price": 100.0},
+        headers=auth_headers(token),
+    )
+    trade_id = open_response.json()["id"]
+    query_close_response = client.post(
+        f"/api/v1/trades/close/{trade_id}?exit_price=112.0",
+        headers=auth_headers(token),
+    )
+    close_response = client.post(
+        f"/api/v1/trades/close/{trade_id}",
+        json={"exit_price": 112.0},
+        headers=auth_headers(token),
+    )
+    duplicate_close_response = client.post(
+        f"/api/v1/trades/close/{trade_id}",
+        json={"exit_price": 113.0},
+        headers=auth_headers(token),
+    )
+
+    assert invalid_open_response.status_code == 422
+    assert open_response.status_code == 200
+    assert open_response.json()["symbol"] == "BTCUSD"
+    assert query_close_response.status_code == 422
+    assert close_response.status_code == 200
+    assert close_response.json()["exit_price"] == 112.0
+    assert duplicate_close_response.status_code == 409
+    assert duplicate_close_response.json() == {"detail": "Trade is already closed"}
+
+
+def test_trade_open_close_contract_is_documented_in_openapi() -> None:
+    openapi_response = client.get("/openapi.json")
+
+    assert openapi_response.status_code == 200
+    openapi = openapi_response.json()
+    schemas = openapi["components"]["schemas"]
+    assert {"Trade", "TradeCreate", "TradeClose"}.issubset(schemas.keys())
+    assert openapi["paths"]["/api/v1/trades/open"]["post"]["requestBody"]["content"][
+        "application/json"
+    ]["schema"] == {"$ref": "#/components/schemas/TradeCreate"}
+    assert openapi["paths"]["/api/v1/trades/close/{trade_id}"]["post"]["requestBody"][
+        "content"
+    ]["application/json"]["schema"] == {"$ref": "#/components/schemas/TradeClose"}
 
 
 def test_user_settings_can_be_created_and_read() -> None:

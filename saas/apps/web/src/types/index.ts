@@ -19,6 +19,15 @@ export interface Signal {
   timestamp: string;
 }
 
+export interface TradeOpenRequest {
+  symbol: string;
+  entry_price: number;
+}
+
+export interface TradeCloseRequest {
+  exit_price: number;
+}
+
 export interface Trade {
   id: number;
   symbol: string;
