@@ -130,3 +130,59 @@ export type TradeOpenRequest = TradeCreate;
 export type TradeCloseRequest = TradeClose;
 export type EquityPoint = EquityCurvePoint;
 export type DrawdownPoint = DrawdownCurvePoint;
+
+// Simulation schemas: apps/api/app/schemas/simulations.py
+export interface SimulationRequest {
+  symbol?: string;
+  timeframe?: string;
+  start_date?: string | null;
+  end_date?: string | null;
+  output_dir?: string;
+  generated_steps?: number | null;
+  train_lstm?: boolean;
+  train_rl?: boolean;
+  save_charts?: boolean;
+  rl_algorithm?: string;
+  rl_total_timesteps?: number;
+  initial_balance?: number;
+  grid_levels?: number;
+  grid_step_pct?: number;
+  martingale_factor?: number;
+  random_seed?: number | null;
+}
+
+export interface SimulationResult {
+  output_dir: string;
+  historical_data_path: string;
+  generated_data_path: string;
+  orders_path: string;
+  trades_path: string;
+  performance_path: string;
+  rewards_path: string;
+  equity_curve_path: string;
+  drawdown_path: string;
+  model_path: string | null;
+  equity_chart_path: string | null;
+  drawdown_chart_path: string | null;
+  performance: Record<string, string | number | boolean | null>;
+  total_steps: number;
+  trained_lstm: boolean;
+  trained_rl: boolean;
+}
+
+export interface SimulationRun {
+  id: string;
+  status: 'running' | 'completed' | 'failed';
+  created_at: string;
+  completed_at: string | null;
+  parameters: Record<string, string | number | boolean | null | object>;
+  result: SimulationResult | null;
+  error: string | null;
+}
+
+export interface SimulationArtifact {
+  name: string;
+  path: string;
+  exists: boolean;
+  size_bytes: number | null;
+}
