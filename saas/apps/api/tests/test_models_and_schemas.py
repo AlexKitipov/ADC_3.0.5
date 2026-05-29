@@ -4,7 +4,12 @@ from datetime import datetime
 
 from app.db import Base
 from app.models import UserSettings
-from app.schemas import Trade, UserSettingsUpdate
+from app.schemas import (
+    DrawdownCurvePoint,
+    EquityCurvePoint,
+    Trade,
+    UserSettingsUpdate,
+)
 
 
 def test_all_core_tables_are_registered() -> None:
@@ -58,3 +63,22 @@ def test_user_settings_update_schema_uses_builtin_generics() -> None:
     )
 
     assert payload.symbols == ["EURUSD", "GBPUSD"]
+
+
+def test_dashboard_curve_point_schemas_serialize_datetime_values() -> None:
+    timestamp = datetime(2026, 5, 28, 12, 0, 0)
+
+    equity_point = EquityCurvePoint(
+        timestamp=timestamp, equity=10125.5, balance=10000.0
+    )
+    drawdown_point = DrawdownCurvePoint(timestamp=timestamp, drawdown=0.025)
+
+    assert equity_point.model_dump(mode="json") == {
+        "timestamp": "2026-05-28T12:00:00",
+        "equity": 10125.5,
+        "balance": 10000.0,
+    }
+    assert drawdown_point.model_dump(mode="json") == {
+        "timestamp": "2026-05-28T12:00:00",
+        "drawdown": 0.025,
+    }
