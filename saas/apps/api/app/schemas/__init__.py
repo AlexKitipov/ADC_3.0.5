@@ -10,6 +10,7 @@ from app.schemas.auth import Token, User, UserCreate
 from app.schemas.dashboard import DashboardStats, DrawdownCurvePoint, EquityCurvePoint
 from app.schemas.settings import UserSettings, UserSettingsBase, UserSettingsUpdate
 from app.schemas.signals import Signal, SignalAction, SignalCreate
+from app.schemas.strategy import StrategyParameterSpec, StrategyParameterValue
 from app.schemas.trades import Trade, TradeClose, TradeCreate
 
 __all__ = [
@@ -19,6 +20,8 @@ __all__ = [
     "Signal",
     "SignalAction",
     "SignalCreate",
+    "StrategyParameterSpec",
+    "StrategyParameterValue",
     "Token",
     "Trade",
     "TradeClose",

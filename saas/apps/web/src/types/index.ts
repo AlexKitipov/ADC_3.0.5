@@ -110,6 +110,21 @@ export interface UserSettings extends UserSettingsUpdate {
   id: number;
 }
 
+// Strategy metadata schemas: apps/api/app/schemas/strategy.py
+export type StrategyParameterValue = string | number | boolean | null;
+
+export interface StrategyParameterSpec {
+  name: string;
+  group: string;
+  label: string;
+  default: StrategyParameterValue;
+  min_value: number | null;
+  max_value: number | null;
+  step: number | null;
+  options: StrategyParameterValue[];
+  description: string;
+}
+
 // Backward-compatible aliases retained for existing frontend modules.
 export type TradeOpenRequest = TradeCreate;
 export type TradeCloseRequest = TradeClose;
