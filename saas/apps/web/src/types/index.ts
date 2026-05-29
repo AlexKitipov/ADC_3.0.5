@@ -1,3 +1,12 @@
+/**
+ * Frontend view of the backend API schemas.
+ *
+ * Source of truth: Pydantic models under `apps/api/app/schemas`. Keep exported
+ * names aligned with backend schema names where practical until this package is
+ * generated from OpenAPI or imported from `packages/contracts`.
+ */
+
+// Auth schemas: apps/api/app/schemas/auth.py
 export interface User {
   id: number;
   email: string;
@@ -6,8 +15,28 @@ export interface User {
   created_at: string;
 }
 
+export interface UserCreate {
+  email: string;
+  username: string;
+  password: string;
+}
+
+export interface Token {
+  access_token: string;
+  token_type: string;
+}
+
+// Signal schemas: apps/api/app/schemas/signals.py
 export type KnownSignalAction = 'BUY' | 'SELL' | 'HOLD';
 export type SignalAction = KnownSignalAction | (string & Record<never, never>);
+
+export interface SignalCreate {
+  symbol: string;
+  action: SignalAction;
+  price: number;
+  rsi: number;
+  macd: number;
+}
 
 export interface Signal {
   id: number;
@@ -19,12 +48,13 @@ export interface Signal {
   timestamp: string;
 }
 
-export interface TradeOpenRequest {
+// Trade schemas: apps/api/app/schemas/trades.py
+export interface TradeCreate {
   symbol: string;
   entry_price: number;
 }
 
-export interface TradeCloseRequest {
+export interface TradeClose {
   exit_price: number;
 }
 
@@ -37,9 +67,10 @@ export interface Trade {
   exit_time: string | null;
   pnl: number | null;
   pnl_percent: number | null;
-  status: 'open' | 'closed';
+  status: 'open' | 'closed' | (string & Record<never, never>);
 }
 
+// Dashboard schemas: apps/api/app/schemas/dashboard.py
 export interface DashboardStats {
   total_balance: number;
   current_equity: number;
@@ -49,17 +80,18 @@ export interface DashboardStats {
   monthly_pnl: number;
 }
 
-export interface EquityPoint {
+export interface EquityCurvePoint {
   timestamp: string;
   equity: number;
   balance: number;
 }
 
-export interface DrawdownPoint {
+export interface DrawdownCurvePoint {
   timestamp: string;
   drawdown: number;
 }
 
+// Settings schemas: apps/api/app/schemas/settings.py
 export interface UserSettingsUpdate {
   symbols: string[];
   timeframe: string;
@@ -77,3 +109,9 @@ export interface UserSettingsUpdate {
 export interface UserSettings extends UserSettingsUpdate {
   id: number;
 }
+
+// Backward-compatible aliases retained for existing frontend modules.
+export type TradeOpenRequest = TradeCreate;
+export type TradeCloseRequest = TradeClose;
+export type EquityPoint = EquityCurvePoint;
+export type DrawdownPoint = DrawdownCurvePoint;

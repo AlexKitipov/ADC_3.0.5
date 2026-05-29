@@ -8,7 +8,7 @@ Backend service boundaries:
 - `app/core` - application settings, security helpers, logging, and shared framework setup.
 - `app/db` - database session setup, migrations, and repository abstractions.
 - `app/models` - persistence models.
-- `app/schemas` - request/response and internal DTO schemas.
+- `app/schemas` - request/response and internal DTO schemas grouped by API resource, with package-level re-exports for existing endpoint imports.
 - `app/services` - business use cases for strategies, experiments, billing, and analytics.
 - `app/workers` - background jobs for market data, metrics, and notifications.
 - `tests` - API and unit tests for backend behavior.
@@ -23,13 +23,13 @@ Frontend service boundaries:
 - `src/hooks` - reusable frontend hooks.
 - `src/lib` - client helpers and shared utilities.
 - `src/styles` - global styles and design tokens.
-- `src/types` - frontend TypeScript types.
+- `src/types` - frontend TypeScript API types that mirror backend schemas until generated contracts are consumed.
 
 ## `packages`
 
 Shared workspace packages:
 
-- `contracts` - API/event contract definitions shared between services.
+- `contracts` - future generated API/event contract package; backend Pydantic schemas own the source contract, OpenAPI is the interchange format, and the web app consumes mirrored/generated TypeScript types.
 - `config` - linting, formatting, and build configuration presets.
 - `ui` - reusable UI primitives intended for the web app.
 
