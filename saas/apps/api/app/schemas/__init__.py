@@ -9,6 +9,13 @@ well-owned schema boundaries.
 from app.schemas.auth import Token, User, UserCreate
 from app.schemas.dashboard import DashboardStats, DrawdownCurvePoint, EquityCurvePoint
 from app.schemas.settings import UserSettings, UserSettingsBase, UserSettingsUpdate
+from app.schemas.simulations import (
+    SimulationArtifact,
+    SimulationRequest,
+    SimulationResultSchema,
+    SimulationRun,
+    SimulationStatus,
+)
 from app.schemas.signals import Signal, SignalAction, SignalCreate
 from app.schemas.strategy import StrategyParameterSpec, StrategyParameterValue
 from app.schemas.trades import Trade, TradeClose, TradeCreate
@@ -20,6 +27,11 @@ __all__ = [
     "Signal",
     "SignalAction",
     "SignalCreate",
+    "SimulationArtifact",
+    "SimulationRequest",
+    "SimulationResultSchema",
+    "SimulationRun",
+    "SimulationStatus",
     "StrategyParameterSpec",
     "StrategyParameterValue",
     "Token",

@@ -1,4 +1,4 @@
-import { Activity, BarChart3, BookOpen, LogOut, Settings, ShieldCheck, Zap } from 'lucide-react';
+import { Activity, BarChart3, Beaker, BookOpen, LogOut, Settings, ShieldCheck, Zap } from 'lucide-react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 
@@ -6,6 +6,7 @@ const navItems = [
   { to: '/dashboard', label: 'Dashboard', icon: BarChart3, description: 'Portfolio health' },
   { to: '/signals', label: 'Signals', icon: Zap, description: 'Live market ideas' },
   { to: '/trades', label: 'Trades', icon: Activity, description: 'Open and closed P&L' },
+  { to: '/simulations', label: 'Simulations', icon: Beaker, description: 'Run strategy experiments' },
   { to: '/settings', label: 'Settings', icon: Settings, description: 'Risk controls' },
 ];
 

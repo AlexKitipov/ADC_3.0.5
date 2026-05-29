@@ -5,6 +5,7 @@ import { ProtectedRoute } from '../components/ProtectedRoute';
 import { AuthPage } from '../pages/AuthPage';
 import { DashboardPage } from '../pages/DashboardPage';
 import { SettingsPage } from '../pages/SettingsPage';
+import { SimulationPage } from '../pages/SimulationPage';
 import { SignalsPage } from '../pages/SignalsPage';
 import { TradesPage } from '../pages/TradesPage';
 import { useAuthStore } from '../store/authStore';
@@ -26,6 +27,7 @@ export function App() {
           <Route path="dashboard" element={<DashboardPage />} />
           <Route path="signals" element={<SignalsPage />} />
           <Route path="trades" element={<TradesPage />} />
+          <Route path="simulations" element={<SimulationPage />} />
           <Route path="settings" element={<SettingsPage />} />
         </Route>
       </Route>
