@@ -1,12 +1,12 @@
 import client from './client';
-import { DashboardStats, DrawdownPoint, EquityPoint } from '../types';
+import type { DashboardStats, DrawdownCurvePoint, EquityCurvePoint } from '../types';
 
 export const dashboardAPI = {
   getStats: () => client.get<DashboardStats>('/dashboard/stats'),
   getEquityCurve: (days = 30) =>
-    client.get<EquityPoint[]>('/dashboard/equity-curve', { params: { days } }),
+    client.get<EquityCurvePoint[]>('/dashboard/equity-curve', { params: { days } }),
   getDrawdownCurve: (days = 30) =>
-    client.get<DrawdownPoint[]>('/dashboard/drawdown-curve', {
+    client.get<DrawdownCurvePoint[]>('/dashboard/drawdown-curve', {
       params: { days },
     }),
 };

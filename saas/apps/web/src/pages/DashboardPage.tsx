@@ -20,13 +20,13 @@ import {
 import { dashboardAPI } from '../api/dashboard';
 import { LoadingState } from '../components/LoadingState';
 import { StatCard } from '../components/StatCard';
-import { DashboardStats, DrawdownPoint, EquityPoint } from '../types';
+import type { DashboardStats, DrawdownCurvePoint, EquityCurvePoint } from '../types';
 import { formatCurrency, formatPercent } from '../lib/format';
 
 interface DashboardLoadResult {
   stats: DashboardStats;
-  equity: EquityPoint[];
-  drawdown: DrawdownPoint[];
+  equity: EquityCurvePoint[];
+  drawdown: DrawdownCurvePoint[];
   warnings: string[];
 }
 
@@ -64,8 +64,8 @@ export async function loadDashboardData(
 
 export function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [equity, setEquity] = useState<EquityPoint[]>([]);
-  const [drawdown, setDrawdown] = useState<DrawdownPoint[]>([]);
+  const [equity, setEquity] = useState<EquityCurvePoint[]>([]);
+  const [drawdown, setDrawdown] = useState<DrawdownCurvePoint[]>([]);
   const [warnings, setWarnings] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
