@@ -5,6 +5,7 @@ from datetime import datetime
 from sqlalchemy import (
     JSON,
     Boolean,
+    CheckConstraint,
     Column,
     DateTime,
     Float,
@@ -15,6 +16,8 @@ from sqlalchemy import (
 from sqlalchemy.orm import relationship
 
 from app.db.session import Base
+
+SIGNAL_ACTION_VALUES = ("BUY", "SELL", "HOLD")
 
 DEFAULT_USER_SETTINGS = {
     "symbols": ["EURUSD", "GBPUSD"],
@@ -102,6 +105,12 @@ class Signal(Base):
     """Generated market signal for a user."""
 
     __tablename__ = "signals"
+    __table_args__ = (
+        CheckConstraint(
+            "action IN ('BUY', 'SELL', 'HOLD')",
+            name="ck_signals_action_allowed",
+        ),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
@@ -149,6 +158,7 @@ class EquitySnapshot(Base):
 
 __all__ = [
     "EquitySnapshot",
+    "SIGNAL_ACTION_VALUES",
     "Signal",
     "Trade",
     "User",

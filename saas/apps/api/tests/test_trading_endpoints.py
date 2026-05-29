@@ -41,7 +41,7 @@ def test_signal_create_latest_and_symbol_filters_are_user_scoped() -> None:
     second_token = register_and_login()
     signal_payload = {
         "symbol": "EURUSD",
-        "action": "buy",
+        "action": "BUY",
         "price": 1.085,
         "rsi": 44.2,
         "macd": 0.15,
@@ -69,7 +69,26 @@ def test_signal_create_latest_and_symbol_filters_are_user_scoped() -> None:
     assert latest_response.status_code == 200
     assert [signal["symbol"] for signal in latest_response.json()] == ["EURUSD"]
     assert symbol_response.status_code == 200
-    assert [signal["action"] for signal in symbol_response.json()] == ["buy"]
+    assert [signal["action"] for signal in symbol_response.json()] == ["BUY"]
+
+
+def test_signal_create_rejects_unknown_action() -> None:
+    token = register_and_login()
+
+    create_response = client.post(
+        "/api/v1/signals/create",
+        json={
+            "symbol": "EURUSD",
+            "action": "STRONG_BUY",
+            "price": 1.085,
+            "rsi": 44.2,
+            "macd": 0.15,
+        },
+        headers=auth_headers(token),
+    )
+
+    assert create_response.status_code == 422
+    assert create_response.json()["detail"][0]["loc"] == ["body", "action"]
 
 
 def test_trade_open_close_and_history_are_user_scoped() -> None:

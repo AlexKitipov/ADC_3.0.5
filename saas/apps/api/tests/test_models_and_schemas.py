@@ -3,10 +3,12 @@
 from datetime import datetime
 
 from app.db import Base
-from app.models import UserSettings
+from app.models import SIGNAL_ACTION_VALUES, Signal, UserSettings
 from app.schemas import (
     DrawdownCurvePoint,
     EquityCurvePoint,
+    SignalAction,
+    SignalCreate,
     Trade,
     UserSettingsUpdate,
 )
@@ -82,3 +84,23 @@ def test_dashboard_curve_point_schemas_serialize_datetime_values() -> None:
         "timestamp": "2026-05-28T12:00:00",
         "drawdown": 0.025,
     }
+
+
+def test_signal_schema_accepts_expected_actions() -> None:
+    signal = SignalCreate(
+        symbol="EURUSD",
+        action=SignalAction.BUY,
+        price=1.085,
+        rsi=44.2,
+        macd=0.15,
+    )
+
+    assert signal.action == SignalAction.BUY
+    assert signal.model_dump(mode="json")["action"] == "BUY"
+
+
+def test_signal_model_declares_action_check_constraint() -> None:
+    constraints = {constraint.name for constraint in Signal.__table__.constraints}
+
+    assert SIGNAL_ACTION_VALUES == ("BUY", "SELL", "HOLD")
+    assert "ck_signals_action_allowed" in constraints
