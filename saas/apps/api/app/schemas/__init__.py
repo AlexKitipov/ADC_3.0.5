@@ -66,10 +66,16 @@ class Signal(BaseModel):
 
 
 class TradeCreate(BaseModel):
-    """Payload for opening a trade."""
+    """Payload for opening a simple persisted trade record."""
 
-    symbol: str
-    entry_price: float
+    symbol: str = Field(min_length=1, max_length=32)
+    entry_price: float = Field(gt=0)
+
+
+class TradeClose(BaseModel):
+    """Payload for closing a simple persisted trade record."""
+
+    exit_price: float = Field(gt=0)
 
 
 class Trade(BaseModel):
@@ -159,6 +165,7 @@ __all__ = [
     "SignalCreate",
     "Token",
     "Trade",
+    "TradeClose",
     "TradeCreate",
     "User",
     "UserCreate",

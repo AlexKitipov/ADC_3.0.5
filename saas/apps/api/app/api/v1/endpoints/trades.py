@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.db import get_db
 from app.models import Trade, User
-from app.schemas import Trade as TradeSchema, TradeCreate
+from app.schemas import Trade as TradeSchema, TradeClose, TradeCreate
 from app.security import get_current_user
 
 router = APIRouter()
@@ -26,11 +26,15 @@ def open_trade(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> Trade:
-    """Open a trade for the authenticated user."""
+    """Persist a simple open trade record for the authenticated user.
+
+    This endpoint records a user-visible trade journal entry. It does not submit
+    an executable broker order or invoke the richer order-management service.
+    """
 
     db_trade = Trade(
         user_id=current_user.id,
-        symbol=trade.symbol,
+        symbol=trade.symbol.upper(),
         entry_price=trade.entry_price,
     )
     db.add(db_trade)
@@ -42,11 +46,11 @@ def open_trade(
 @router.post("/close/{trade_id}", response_model=TradeSchema)
 def close_trade(
     trade_id: int,
-    exit_price: float,
+    trade_close: TradeClose,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> Trade:
-    """Close an authenticated user's open trade and calculate PnL."""
+    """Close an authenticated user's simple trade record and calculate PnL."""
 
     trade = (
         db.query(Trade)
@@ -58,11 +62,15 @@ def close_trade(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Trade not found"
         )
+    if trade.status == "closed":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="Trade is already closed"
+        )
 
-    trade.exit_price = exit_price
+    trade.exit_price = trade_close.exit_price
     trade.exit_time = datetime.utcnow()
     trade.status = "closed"
-    trade.pnl = exit_price - trade.entry_price
+    trade.pnl = trade_close.exit_price - trade.entry_price
     trade.pnl_percent = (trade.pnl / trade.entry_price) * 100
 
     db.commit()
