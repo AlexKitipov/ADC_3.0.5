@@ -6,5 +6,7 @@ export const dashboardAPI = {
   getEquityCurve: (days = 30) =>
     client.get<EquityPoint[]>('/dashboard/equity-curve', { params: { days } }),
   getDrawdownCurve: (days = 30) =>
-    client.get<DrawdownPoint[]>('/dashboard/drawdown-curve', { params: { days } }),
+    client.get<DrawdownPoint[]>('/dashboard/drawdown-curve', {
+      params: { days },
+    }),
 };

@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.db import get_db
 from app.models import EquitySnapshot, Trade, User
-from app.schemas import DashboardStats
+from app.schemas import DashboardStats, DrawdownCurvePoint, EquityCurvePoint
 from app.security import get_current_user
 
 router = APIRouter()
@@ -59,12 +59,12 @@ def get_dashboard_stats(
     )
 
 
-@router.get("/equity-curve")
+@router.get("/equity-curve", response_model=list[EquityCurvePoint])
 def get_equity_curve(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
     days: int = 30,
-) -> list[dict[str, datetime | float]]:
+) -> list[EquityCurvePoint]:
     """Return the user's equity and balance history for the requested period."""
 
     since = datetime.utcnow() - timedelta(days=days)
@@ -79,21 +79,21 @@ def get_equity_curve(
     )
 
     return [
-        {
-            "timestamp": snapshot.timestamp,
-            "equity": snapshot.equity,
-            "balance": snapshot.balance,
-        }
+        EquityCurvePoint(
+            timestamp=snapshot.timestamp,
+            equity=snapshot.equity,
+            balance=snapshot.balance,
+        )
         for snapshot in snapshots
     ]
 
 
-@router.get("/drawdown-curve")
+@router.get("/drawdown-curve", response_model=list[DrawdownCurvePoint])
 def get_drawdown_curve(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
     days: int = 30,
-) -> list[dict[str, datetime | float]]:
+) -> list[DrawdownCurvePoint]:
     """Return the user's drawdown history for the requested period."""
 
     since = datetime.utcnow() - timedelta(days=days)
@@ -108,6 +108,6 @@ def get_drawdown_curve(
     )
 
     return [
-        {"timestamp": snapshot.timestamp, "drawdown": snapshot.drawdown}
+        DrawdownCurvePoint(timestamp=snapshot.timestamp, drawdown=snapshot.drawdown)
         for snapshot in snapshots
     ]

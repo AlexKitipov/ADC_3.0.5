@@ -90,6 +90,21 @@ class DashboardStats(BaseModel):
     monthly_pnl: float
 
 
+class EquityCurvePoint(BaseModel):
+    """Single timestamped balance and equity point for dashboard charts."""
+
+    timestamp: datetime
+    equity: float
+    balance: float
+
+
+class DrawdownCurvePoint(BaseModel):
+    """Single timestamped drawdown point for dashboard charts."""
+
+    timestamp: datetime
+    drawdown: float
+
+
 class UserSettingsBase(BaseModel):
     """Shared trading and notification settings fields.
 
@@ -128,6 +143,8 @@ class UserSettingsUpdate(UserSettingsBase):
 
 __all__ = [
     "DashboardStats",
+    "DrawdownCurvePoint",
+    "EquityCurvePoint",
     "Signal",
     "SignalCreate",
     "Token",
