@@ -5,8 +5,8 @@ Python backend application for ADC SaaS.
 Implemented responsibilities:
 
 - FastAPI application entry point in `app/main.py`
-- REST API endpoints under `/api/v1`
-- Health checks at `/api/health` and `/api/v1/health`
+- Canonical REST API endpoints under `/api/v1`
+- Health checks at `/api/v1/health`
 - SQLAlchemy engine/session setup
 - Celery application setup backed by Redis
 - Environment-driven configuration for database, Redis, JWT, and SMTP settings
@@ -18,6 +18,14 @@ Planned responsibilities:
 - Market data ingestion orchestration
 - Backtesting/metrics services
 - Background worker entry points
+
+## API base path
+
+The backend registers a single canonical frontend-facing REST API namespace:
+`/api/v1`. Unversioned `/api/*` resource routes are intentionally not registered.
+Clients, tests, deployment configuration, and reverse proxies should target the
+full versioned base URL, for example `http://localhost:8000/api/v1` in local
+development.
 
 ## Local development
 
