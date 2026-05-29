@@ -1,6 +1,7 @@
 """Pydantic request and response schemas for the ADC Trading Platform API."""
 
 from datetime import datetime
+from enum import Enum
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
@@ -32,11 +33,19 @@ class Token(BaseModel):
     token_type: str
 
 
+class SignalAction(str, Enum):
+    """Allowed trading signal action values."""
+
+    BUY = "BUY"
+    SELL = "SELL"
+    HOLD = "HOLD"
+
+
 class SignalCreate(BaseModel):
     """Payload for creating a trading signal."""
 
     symbol: str
-    action: str
+    action: SignalAction
     price: float
     rsi: float
     macd: float
@@ -47,7 +56,7 @@ class Signal(BaseModel):
 
     id: int
     symbol: str
-    action: str
+    action: SignalAction
     price: float
     rsi: float
     macd: float
@@ -146,6 +155,7 @@ __all__ = [
     "DrawdownCurvePoint",
     "EquityCurvePoint",
     "Signal",
+    "SignalAction",
     "SignalCreate",
     "Token",
     "Trade",

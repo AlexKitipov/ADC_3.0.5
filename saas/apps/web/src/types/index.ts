@@ -6,10 +6,13 @@ export interface User {
   created_at: string;
 }
 
+export type KnownSignalAction = 'BUY' | 'SELL' | 'HOLD';
+export type SignalAction = KnownSignalAction | (string & Record<never, never>);
+
 export interface Signal {
   id: number;
   symbol: string;
-  action: 'BUY' | 'SELL' | 'HOLD';
+  action: SignalAction;
   price: number;
   rsi: number;
   macd: number;
