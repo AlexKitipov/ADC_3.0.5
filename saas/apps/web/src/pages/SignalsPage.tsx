@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { signalsAPI } from '../api/signals';
 import { LoadingState } from '../components/LoadingState';
+import { EmptyState, ErrorState } from '../components/PageState';
 import type { KnownSignalAction, Signal } from '../types';
 import { formatCurrency, formatDateTime } from '../lib/format';
 
@@ -96,11 +97,7 @@ export function SignalsPage() {
         <h2 className="text-3xl font-bold text-white">Signals</h2>
         <p className="mt-2 text-slate-400">Recent indicator-driven trading signals with explainable RSI and MACD context.</p>
       </div>
-      {error && (
-        <div className="rounded-2xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-200" role="alert">
-          {error}
-        </div>
-      )}
+      {error && <ErrorState title="Signals unavailable" message={error} />}
       <div className="grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]">
         <div className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/60">
           <table className="min-w-full divide-y divide-slate-800">
@@ -140,7 +137,7 @@ export function SignalsPage() {
               })}
             </tbody>
           </table>
-          {signals.length === 0 && <p className="p-6 text-center text-slate-400">No signals yet.</p>}
+          {signals.length === 0 && <EmptyState title="No signals yet" message="Signals will appear after the backend records indicator-driven decisions for configured symbols." />}
         </div>
 
         <aside className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
@@ -174,7 +171,7 @@ export function SignalsPage() {
               </div>
             </div>
           ) : (
-            <p className="mt-5 rounded-xl border border-slate-800 bg-slate-950/40 p-4 text-sm text-slate-400">Select a signal to see why the stored RSI and MACD values matter.</p>
+            <EmptyState title="Select a signal" message="Choose a signal row to inspect RSI, MACD, and stateless indicator context." />
           )}
         </aside>
       </div>
