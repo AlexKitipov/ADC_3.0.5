@@ -11,7 +11,7 @@ Implemented responsibilities:
 - Celery application setup backed by Redis
 - Environment-driven configuration for database, Redis, JWT, and SMTP settings
 
-Primary endpoint responsibilities:
+Core MVP endpoint responsibilities:
 
 - Authentication and current-user profile management (`/api/v1/auth/*`)
 - Dashboard statistics, equity curves, and drawdown curves (`/api/v1/dashboard/*`)
@@ -22,6 +22,10 @@ Primary endpoint responsibilities:
 - Market tick streaming over server-sent events
 - Email notifications and trade-journal import/export workflows
 - Static route contract tests that keep frontend API modules synchronized with backend routes
+
+Readiness, health, and demo-compatible routes remain available for smoke tests
+and backwards compatibility. They are intentionally not removed in this PR, but
+they do not change the canonical MVP runtime direction.
 
 ## API base path
 
@@ -49,22 +53,39 @@ docs in the same change whenever adding, renaming, or removing endpoints.
 
 ## Local development
 
-Copy the example environment from the SaaS root before running the stack:
+The canonical MVP backend entry point is the FastAPI app in this directory. From
+the repository root, start it with:
 
 ```bash
-cp ../../.env.example ../../.env
+cd saas/apps/api && uvicorn app.main:app --reload
 ```
 
-Run the API from this directory:
+This serves the versioned API at `http://localhost:8000/api/v1`. The Vite
+frontend should target that URL with:
 
-```bash
-uvicorn app.main:app --reload
+```env
+VITE_API_URL=http://localhost:8000/api/v1
 ```
 
-Run the smoke tests:
+Copy the SaaS environment template before running the local stack:
 
 ```bash
-pytest
+cd saas && cp .env.example .env
+```
+
+The notebook and root-level legacy workflow remain archive/reference material.
+They should not be used as an alternate backend entry point for MVP work.
+
+Run the API contract test from this directory:
+
+```bash
+python -m pytest tests/test_api_contracts.py
+```
+
+Run the full API test suite when dependencies are installed:
+
+```bash
+python -m pytest
 ```
 
 ## Simulation runner
