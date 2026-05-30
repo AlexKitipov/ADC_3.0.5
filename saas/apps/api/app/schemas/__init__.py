@@ -8,6 +8,14 @@ well-owned schema boundaries.
 
 from app.schemas.auth import Token, User, UserCreate
 from app.schemas.dashboard import DashboardStats, DrawdownCurvePoint, EquityCurvePoint
+from app.schemas.indicators import (
+    IndicatorCalculationMode,
+    IndicatorCalculationRequest,
+    IndicatorCalculationResponse,
+    IndicatorParameters,
+    IndicatorRow,
+    IndicatorValues,
+)
 from app.schemas.market_data import (
     MarketDataQuery,
     MarketDataResponse,
@@ -30,6 +38,12 @@ __all__ = [
     "DashboardStats",
     "DrawdownCurvePoint",
     "EquityCurvePoint",
+    "IndicatorCalculationMode",
+    "IndicatorCalculationRequest",
+    "IndicatorCalculationResponse",
+    "IndicatorParameters",
+    "IndicatorRow",
+    "IndicatorValues",
     "MarketDataQuery",
     "MarketDataResponse",
     "MarketDataTimeframe",
