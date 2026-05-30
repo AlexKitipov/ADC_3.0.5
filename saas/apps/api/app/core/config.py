@@ -31,6 +31,7 @@ class Settings(BaseSettings):
     SMTP_USERNAME: str = "your-email@gmail.com"
     SMTP_PASSWORD: str = "your-app-password"
     FROM_EMAIL: str = "noreply@adctrading.com"
+    MARKET_DATA_PROVIDER: str = "yahoo"
     ALPHA_VANTAGE_API_KEY: str | None = Field(
         default=None,
         validation_alias=AliasChoices("ALPHA_VANTAGE_API_KEY", "ALPHA_VANTAGE_KEY"),

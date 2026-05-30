@@ -8,9 +8,8 @@ from typing import Annotated
 import pandas as pd
 from fastapi import APIRouter, HTTPException, Query, status
 
-from app.core.config import settings
 from app.schemas import MarketDataResponse, MarketDataTimeframe, OHLCVRow
-from app.services.data_loader import DataLoader
+from app.services.data_loader import get_market_data_provider
 
 router = APIRouter()
 
@@ -31,13 +30,13 @@ def get_ohlcv_market_data(
             detail="start_date must be before or equal to end_date",
         )
 
-    loader = DataLoader(alpha_vantage_key=settings.ALPHA_VANTAGE_API_KEY)
     try:
-        data = loader.fetch_data(
+        provider = get_market_data_provider()
+        data = provider.get_ohlcv(
             normalized_symbol,
             timeframe=timeframe,
-            start_date=start_date.isoformat() if start_date else None,
-            end_date=end_date.isoformat() if end_date else None,
+            start=start_date.isoformat() if start_date else None,
+            end=end_date.isoformat() if end_date else None,
         )
     except ValueError as exc:
         message = str(exc)

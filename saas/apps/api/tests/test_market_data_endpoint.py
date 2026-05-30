@@ -22,9 +22,12 @@ def test_get_ohlcv_returns_standardized_rows() -> None:
         index=pd.to_datetime(["2026-01-02", "2026-01-03"]),
     )
 
-    loader = Mock()
-    loader.fetch_data.return_value = frame
-    with patch("app.api.v1.endpoints.market_data.DataLoader", return_value=loader):
+    provider = Mock()
+    provider.get_ohlcv.return_value = frame
+    with patch(
+        "app.api.v1.endpoints.market_data.get_market_data_provider",
+        return_value=provider,
+    ):
         response = client.get(
             "/api/v1/market-data/ohlcv",
             params={
@@ -49,15 +52,22 @@ def test_get_ohlcv_returns_standardized_rows() -> None:
         "close": 101.5,
         "volume": 1000.0,
     }
-    loader.fetch_data.assert_called_once_with(
-        "AAPL", timeframe="1d", start_date="2026-01-01", end_date="2026-01-31"
+    provider.get_ohlcv.assert_called_once_with(
+        "AAPL", timeframe="1d", start="2026-01-01", end="2026-01-31"
     )
 
 
 def test_get_ohlcv_requires_alpha_vantage_key_for_intraday() -> None:
     client = TestClient(app)
 
-    with patch("app.api.v1.endpoints.market_data.settings.ALPHA_VANTAGE_API_KEY", None):
+    provider = Mock()
+    provider.get_ohlcv.side_effect = ValueError(
+        "Alpha Vantage API key required for intraday timeframes."
+    )
+    with patch(
+        "app.api.v1.endpoints.market_data.get_market_data_provider",
+        return_value=provider,
+    ):
         response = client.get(
             "/api/v1/market-data/ohlcv",
             params={"symbol": "EURUSD", "timeframe": "5min"},
@@ -71,10 +81,13 @@ def test_get_ohlcv_requires_alpha_vantage_key_for_intraday() -> None:
 
 def test_get_ohlcv_surfaces_provider_errors_as_bad_gateway() -> None:
     client = TestClient(app)
-    loader = Mock()
-    loader.fetch_data.side_effect = RuntimeError("provider unavailable")
+    provider = Mock()
+    provider.get_ohlcv.side_effect = RuntimeError("provider unavailable")
 
-    with patch("app.api.v1.endpoints.market_data.DataLoader", return_value=loader):
+    with patch(
+        "app.api.v1.endpoints.market_data.get_market_data_provider",
+        return_value=provider,
+    ):
         response = client.get(
             "/api/v1/market-data/ohlcv",
             params={"symbol": "AAPL", "timeframe": "1d"},

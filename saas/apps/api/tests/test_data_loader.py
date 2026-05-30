@@ -8,7 +8,10 @@ import pytest
 from app.services.data_loader import DataLoader
 
 
-def test_fetch_daily_standardizes_yfinance_columns() -> None:
+def test_fetch_daily_standardizes_yfinance_columns(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("MARKET_DATA_PROVIDER", raising=False)
     raw = pd.DataFrame(
         {
             "Open": [1.0],
@@ -20,7 +23,9 @@ def test_fetch_daily_standardizes_yfinance_columns() -> None:
         index=pd.to_datetime(["2026-01-02"]),
     )
 
-    with patch("app.services.data_loader.yf.download", return_value=raw) as download:
+    with patch(
+        "app.services.data.yahoo_provider.yf.download", return_value=raw
+    ) as download:
         data = DataLoader().fetch_data("AAPL", start_date="2026-01-01")
 
     download.assert_called_once_with(
@@ -31,7 +36,10 @@ def test_fetch_daily_standardizes_yfinance_columns() -> None:
     assert data.iloc[0]["Symbol"] == "AAPL"
 
 
-def test_fetch_daily_flattens_multi_index_columns() -> None:
+def test_fetch_daily_flattens_multi_index_columns(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("MARKET_DATA_PROVIDER", raising=False)
     raw = pd.DataFrame(
         [[1.0, 2.0, 0.5, 1.5, 1000]],
         columns=pd.MultiIndex.from_tuples(
@@ -45,18 +53,25 @@ def test_fetch_daily_flattens_multi_index_columns() -> None:
         ),
     )
 
-    with patch("app.services.data_loader.yf.download", return_value=raw):
+    with patch("app.services.data.yahoo_provider.yf.download", return_value=raw):
         data = DataLoader().fetch_data("AAPL")
 
     assert list(data.columns) == ["Open", "High", "Low", "Close", "Volume", "Symbol"]
 
 
-def test_fetch_intraday_requires_alpha_vantage_key() -> None:
+def test_fetch_intraday_requires_alpha_vantage_key(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("MARKET_DATA_PROVIDER", raising=False)
+
     with pytest.raises(ValueError, match="Alpha Vantage API key required"):
         DataLoader().fetch_data("EURUSD", timeframe="5min")
 
 
-def test_fetch_intraday_converts_alpha_vantage_payload_and_filters_dates() -> None:
+def test_fetch_intraday_converts_alpha_vantage_payload_and_filters_dates(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("MARKET_DATA_PROVIDER", raising=False)
     response = Mock()
     response.raise_for_status = Mock()
     response.json.return_value = {
@@ -78,7 +93,9 @@ def test_fetch_intraday_converts_alpha_vantage_payload_and_filters_dates() -> No
         }
     }
 
-    with patch("app.services.data_loader.requests.get", return_value=response) as get:
+    with patch(
+        "app.services.data.alpha_vantage_provider.requests.get", return_value=response
+    ) as get:
         data = DataLoader(alpha_vantage_key="secret").fetch_data(
             "EURUSD",
             timeframe="5min",
@@ -93,14 +110,21 @@ def test_fetch_intraday_converts_alpha_vantage_payload_and_filters_dates() -> No
     assert data.iloc[0]["Symbol"] == "EURUSD"
 
 
-def test_fetch_intraday_surfaces_alpha_vantage_errors() -> None:
+def test_fetch_intraday_surfaces_alpha_vantage_errors(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("MARKET_DATA_PROVIDER", raising=False)
     response = Mock()
     response.raise_for_status = Mock()
     response.json.return_value = {"Error Message": "Invalid API call"}
 
-    with patch("app.services.data_loader.requests.get", return_value=response):
+    with patch(
+        "app.services.data.alpha_vantage_provider.requests.get", return_value=response
+    ):
         with pytest.raises(ValueError, match="Invalid API call"):
-            DataLoader(alpha_vantage_key="secret").fetch_data("EURUSD", timeframe="5min")
+            DataLoader(alpha_vantage_key="secret").fetch_data(
+                "EURUSD", timeframe="5min"
+            )
 
 
 def test_normalize_price_and_validate_ohlcv() -> None:
