@@ -297,6 +297,65 @@ export interface IndicatorCalculationResponse {
   rows: IndicatorRow[];
 }
 
+
+// RL training schemas: apps/api/app/schemas/rl.py
+export type RLAlgorithm = 'PPO' | 'DQN' | 'A2C' | 'SAC';
+export type RLEnvironment = 'pivot-grid';
+export type RLTrainingStatus = 'running' | 'completed' | 'failed';
+
+export interface RLTrainingRequest {
+  algorithm: RLAlgorithm;
+  total_timesteps: number;
+  hyperparameters?: Record<string, unknown>;
+  policy?: string;
+  model_name?: string | null;
+  save_model?: boolean;
+  seed?: number | null;
+  verbose?: number;
+  device?: string;
+  environment?: RLEnvironment;
+  symbol?: string;
+  timeframe?: string;
+  start_date?: string | null;
+  end_date?: string | null;
+  alpha_vantage_api_key?: string | null;
+  output_dir?: string;
+  generated_steps?: number | null;
+  initial_balance?: number;
+  grid_levels?: number;
+  grid_step_pct?: number;
+  martingale_factor?: number;
+}
+
+export interface RLTrainingResult {
+  algorithm: string;
+  total_timesteps: number;
+  hyperparameters: Record<string, unknown>;
+  environment: string;
+  model_path: string | null;
+  artifact_id: string | null;
+}
+
+export interface RLTrainingJob {
+  id: string;
+  status: RLTrainingStatus;
+  created_at: string;
+  completed_at: string | null;
+  request: Record<string, unknown>;
+  result: RLTrainingResult | null;
+  error: string | null;
+}
+
+export interface RLModelArtifact {
+  id: string;
+  job_id: string;
+  algorithm: string;
+  path: string;
+  exists: boolean;
+  size_bytes: number | null;
+  created_at: string;
+}
+
 // Simulation schemas: apps/api/app/schemas/simulations.py
 export interface SimulationRequest {
   symbol?: string;

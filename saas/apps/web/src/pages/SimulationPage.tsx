@@ -1,8 +1,9 @@
 import { FormEvent, useState } from 'react';
 import { AlertTriangle, CheckCircle2, FileText, LineChart, Loader2, Play, Search, XCircle } from 'lucide-react';
 import { marketDataAPI } from '../api/marketData';
+import { rlAPI } from '../api/rl';
 import { simulationsAPI } from '../api/simulations';
-import type { MarketDataResponse, OHLCVRow, SimulationArtifact, SimulationRequest, SimulationRun } from '../types';
+import type { MarketDataResponse, OHLCVRow, RLTrainingJob, RLTrainingRequest, SimulationArtifact, SimulationRequest, SimulationRun } from '../types';
 
 const defaultForm: Required<Pick<
   SimulationRequest,
@@ -40,10 +41,13 @@ const defaultForm: Required<Pick<
 export function SimulationPage() {
   const [form, setForm] = useState(defaultForm);
   const [simulation, setSimulation] = useState<SimulationRun | null>(null);
+  const [rlJob, setRlJob] = useState<RLTrainingJob | null>(null);
   const [artifacts, setArtifacts] = useState<SimulationArtifact[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isTrainingRl, setIsTrainingRl] = useState(false);
   const [isLoadingArtifacts, setIsLoadingArtifacts] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [rlError, setRlError] = useState<string | null>(null);
   const [marketData, setMarketData] = useState<MarketDataResponse | null>(null);
   const [marketDataError, setMarketDataError] = useState<string | null>(null);
   const [isLoadingMarketData, setIsLoadingMarketData] = useState(false);
@@ -129,6 +133,55 @@ export function SimulationPage() {
     }
   };
 
+  const startRlTraining = async () => {
+    setIsTrainingRl(true);
+    setRlError(null);
+
+    const payload: RLTrainingRequest = {
+      algorithm: form.rl_algorithm as RLTrainingRequest['algorithm'],
+      total_timesteps: form.rl_total_timesteps,
+      hyperparameters: {},
+      policy: 'MlpPolicy',
+      model_name: `${form.symbol.toLowerCase()}_${form.rl_algorithm.toLowerCase()}_pivot`,
+      save_model: true,
+      seed: form.random_seed ?? null,
+      environment: 'pivot-grid',
+      symbol: form.symbol,
+      timeframe: form.timeframe,
+      start_date: form.start_date || null,
+      end_date: form.end_date || null,
+      output_dir: `${form.output_dir}/rl_training`,
+      generated_steps: form.generated_steps || null,
+      initial_balance: form.initial_balance,
+      grid_levels: form.grid_levels,
+      grid_step_pct: form.grid_step_pct,
+      martingale_factor: form.martingale_factor,
+    };
+
+    try {
+      const response = await rlAPI.train(payload);
+      setRlJob(response.data);
+    } catch (trainingError) {
+      console.error('Failed to start RL training:', trainingError);
+      setRlError('Failed to start RL training. Pivot-grid supports PPO, DQN, and A2C; SAC requires a continuous-action environment.');
+    } finally {
+      setIsTrainingRl(false);
+    }
+  };
+
+  const refreshRlJob = async () => {
+    if (!rlJob) {
+      return;
+    }
+    try {
+      const response = await rlAPI.getJob(rlJob.id);
+      setRlJob(response.data);
+    } catch (refreshError) {
+      console.error('Failed to refresh RL training job:', refreshError);
+      setRlError('Failed to refresh RL training status.');
+    }
+  };
+
   return (
     <div className="space-y-8">
       <div>
@@ -198,10 +251,89 @@ export function SimulationPage() {
         </form>
 
         <aside className="space-y-6">
+          <RLTrainingPanel
+            job={rlJob}
+            error={rlError}
+            isTraining={isTrainingRl}
+            selectedAlgorithm={form.rl_algorithm}
+            onStart={startRlTraining}
+            onRefresh={refreshRlJob}
+          />
           <ResultSummary simulation={simulation} onRefresh={refreshSimulation} />
           <ArtifactList artifacts={artifacts} isLoading={isLoadingArtifacts} />
         </aside>
       </section>
+    </div>
+  );
+}
+
+function RLTrainingPanel({
+  job,
+  error,
+  isTraining,
+  selectedAlgorithm,
+  onStart,
+  onRefresh,
+}: {
+  job: RLTrainingJob | null;
+  error: string | null;
+  isTraining: boolean;
+  selectedAlgorithm: string;
+  onStart: () => void;
+  onRefresh: () => void;
+}) {
+  const statusTone = job?.status === 'completed' ? 'success' : job?.status === 'failed' ? 'error' : 'warning';
+  const isUnsupportedPivotAlgorithm = selectedAlgorithm === 'SAC';
+
+  return (
+    <div className="space-y-4 rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
+      <div>
+        <h3 className="text-xl font-semibold text-white">RL training</h3>
+        <p className="mt-1 text-sm text-slate-400">
+          Train a standalone pivot-grid policy from the current simulation data and environment settings.
+        </p>
+      </div>
+
+      {isUnsupportedPivotAlgorithm && (
+        <StatusBanner tone="warning" message="SAC is listed for future continuous environments; pivot-grid training currently supports PPO, DQN, and A2C." />
+      )}
+      {error && <StatusBanner tone="error" message={error} />}
+
+      <div className="flex flex-wrap gap-3">
+        <button
+          type="button"
+          disabled={isTraining || isUnsupportedPivotAlgorithm}
+          onClick={onStart}
+          className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {isTraining ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
+          {isTraining ? 'Training...' : 'Train RL model'}
+        </button>
+        {job && (
+          <button type="button" onClick={onRefresh} className="rounded-xl border border-slate-700 px-4 py-2 text-sm text-slate-200 hover:bg-slate-800">
+            Refresh status
+          </button>
+        )}
+      </div>
+
+      {job ? (
+        <div className="space-y-3">
+          <StatusBanner tone={statusTone} message={`RL job status: ${job.status}`} />
+          <p className="break-all text-xs text-slate-500">Job ID: {job.id}</p>
+          {job.error && <StatusBanner tone="error" message={job.error} />}
+          {job.result && (
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Metric label="Algorithm" value={job.result.algorithm} />
+              <Metric label="Timesteps" value={job.result.total_timesteps.toString()} />
+              <Metric label="Environment" value={job.result.environment} />
+              <Metric label="Artifact ID" value={job.result.artifact_id ?? 'Not saved'} />
+              {job.result.model_path && <Metric label="Model path" value={job.result.model_path} />}
+            </div>
+          )}
+        </div>
+      ) : (
+        <p className="text-sm text-slate-400">No standalone RL training job has been started from this page.</p>
+      )}
     </div>
   );
 }

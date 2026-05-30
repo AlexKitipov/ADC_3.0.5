@@ -8,6 +8,7 @@ from app.api.v1.endpoints import (
     indicators,
     market_data,
     orders,
+    rl,
     sessions,
     settings,
     signals,
@@ -23,6 +24,7 @@ api_router.include_router(indicators.router, prefix="/indicators", tags=["Indica
 api_router.include_router(signals.router, prefix="/signals", tags=["Signals"])
 api_router.include_router(trades.router, prefix="/trades", tags=["Trades"])
 api_router.include_router(orders.router, prefix="/orders", tags=["Orders"])
+api_router.include_router(rl.router, prefix="/rl", tags=["RL Training"])
 api_router.include_router(sessions.router, prefix="/sessions", tags=["Sessions"])
 api_router.include_router(settings.router, prefix="/settings", tags=["Settings"])
 api_router.include_router(market_data.router, prefix="/market-data", tags=["Market Data"])
