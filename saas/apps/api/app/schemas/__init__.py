@@ -17,6 +17,15 @@ from app.schemas.indicators import (
     IndicatorValues,
 )
 from app.schemas.orders import BrokerResult, Order, OrderClose, OrderCreate, OrderType
+from app.schemas.rl import (
+    RLAlgorithm,
+    RLEnvironment,
+    RLModelArtifact,
+    RLTrainingJob,
+    RLTrainingRequest,
+    RLTrainingResultSchema,
+    RLTrainingStatus,
+)
 from app.schemas.market_data import (
     MarketDataQuery,
     MarketDataResponse,
@@ -54,6 +63,13 @@ __all__ = [
     "OrderClose",
     "OrderCreate",
     "OrderType",
+    "RLAlgorithm",
+    "RLEnvironment",
+    "RLModelArtifact",
+    "RLTrainingJob",
+    "RLTrainingRequest",
+    "RLTrainingResultSchema",
+    "RLTrainingStatus",
     "Signal",
     "SignalAction",
     "SignalCreate",
