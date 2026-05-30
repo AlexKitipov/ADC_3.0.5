@@ -8,6 +8,15 @@ well-owned schema boundaries.
 
 from app.schemas.auth import Token, User, UserCreate
 from app.schemas.dashboard import DashboardStats, DrawdownCurvePoint, EquityCurvePoint
+from app.schemas.lstm import (
+    GeneratedCandleRow,
+    LSTMGenerateRequest,
+    LSTMGenerationResultSchema,
+    LSTMJob,
+    LSTMJobStatus,
+    LSTMTrainRequest,
+    LSTMTrainingResultSchema,
+)
 from app.schemas.indicators import (
     IndicatorCalculationMode,
     IndicatorCalculationRequest,
@@ -54,6 +63,13 @@ __all__ = [
     "IndicatorParameters",
     "IndicatorRow",
     "IndicatorValues",
+    "GeneratedCandleRow",
+    "LSTMGenerateRequest",
+    "LSTMGenerationResultSchema",
+    "LSTMJob",
+    "LSTMJobStatus",
+    "LSTMTrainRequest",
+    "LSTMTrainingResultSchema",
     "MarketDataQuery",
     "MarketDataResponse",
     "MarketDataTimeframe",

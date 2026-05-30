@@ -1,31 +1,49 @@
 import { FormEvent, useState } from 'react';
 import { AlertTriangle, CheckCircle2, FileText, LineChart, Loader2, Play, Search, XCircle } from 'lucide-react';
+import { lstmAPI } from '../api/lstm';
 import { marketDataAPI } from '../api/marketData';
 import { rlAPI } from '../api/rl';
 import { simulationsAPI } from '../api/simulations';
-import type { MarketDataResponse, OHLCVRow, RLTrainingJob, RLTrainingRequest, SimulationArtifact, SimulationRequest, SimulationRun } from '../types';
+import type { GeneratedCandleRow, LSTMGenerationResult, LSTMJob, LSTMTrainRequest, MarketDataResponse, OHLCVRow, RLTrainingJob, RLTrainingRequest, SimulationArtifact, SimulationRequest, SimulationRun } from '../types';
 
-const defaultForm: Required<Pick<
-  SimulationRequest,
-  | 'symbol'
-  | 'timeframe'
-  | 'output_dir'
-  | 'rl_algorithm'
-  | 'rl_total_timesteps'
-  | 'initial_balance'
-  | 'grid_levels'
-  | 'grid_step_pct'
-  | 'martingale_factor'
-  | 'train_lstm'
-  | 'train_rl'
-  | 'save_charts'
->> & Pick<SimulationRequest, 'start_date' | 'end_date' | 'generated_steps' | 'random_seed'> = {
+type SimulationForm = {
+  symbol: string;
+  timeframe: string;
+  start_date: string;
+  end_date: string;
+  output_dir: string;
+  generated_steps: number;
+  sequence_length: number;
+  lstm_epochs: number;
+  lstm_batch_size: number;
+  lstm_learning_rate: number;
+  lstm_units_1: number;
+  lstm_units_2: number;
+  rl_algorithm: string;
+  rl_total_timesteps: number;
+  initial_balance: number;
+  grid_levels: number;
+  grid_step_pct: number;
+  martingale_factor: number;
+  random_seed: number | null;
+  train_lstm: boolean;
+  train_rl: boolean;
+  save_charts: boolean;
+};
+
+const defaultForm: SimulationForm = {
   symbol: 'TSLA',
   timeframe: '1d',
   start_date: '',
   end_date: '',
   output_dir: 'simulation_output',
   generated_steps: 50,
+  sequence_length: 5,
+  lstm_epochs: 1,
+  lstm_batch_size: 8,
+  lstm_learning_rate: 0.001,
+  lstm_units_1: 16,
+  lstm_units_2: 16,
   rl_algorithm: 'PPO',
   rl_total_timesteps: 1000,
   initial_balance: 10000,
@@ -42,12 +60,17 @@ export function SimulationPage() {
   const [form, setForm] = useState(defaultForm);
   const [simulation, setSimulation] = useState<SimulationRun | null>(null);
   const [rlJob, setRlJob] = useState<RLTrainingJob | null>(null);
+  const [lstmJob, setLstmJob] = useState<LSTMJob | null>(null);
+  const [lstmGeneration, setLstmGeneration] = useState<LSTMGenerationResult | null>(null);
   const [artifacts, setArtifacts] = useState<SimulationArtifact[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isTrainingRl, setIsTrainingRl] = useState(false);
+  const [isTrainingLstm, setIsTrainingLstm] = useState(false);
+  const [isGeneratingLstm, setIsGeneratingLstm] = useState(false);
   const [isLoadingArtifacts, setIsLoadingArtifacts] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [rlError, setRlError] = useState<string | null>(null);
+  const [lstmError, setLstmError] = useState<string | null>(null);
   const [marketData, setMarketData] = useState<MarketDataResponse | null>(null);
   const [marketDataError, setMarketDataError] = useState<string | null>(null);
   const [isLoadingMarketData, setIsLoadingMarketData] = useState(false);
@@ -133,6 +156,75 @@ export function SimulationPage() {
     }
   };
 
+  const trainStandaloneLstm = async () => {
+    if (!marketData || marketData.rows.length === 0) {
+      setLstmError('Preview market data before training the standalone LSTM generator.');
+      return;
+    }
+
+    setIsTrainingLstm(true);
+    setLstmError(null);
+    setLstmGeneration(null);
+
+    const payload: LSTMTrainRequest = {
+      rows: marketData.rows,
+      features: ['Open', 'High', 'Low', 'Close', 'Volume'],
+      sequence_length: form.sequence_length,
+      lstm_units_1: form.lstm_units_1,
+      lstm_units_2: form.lstm_units_2,
+      learning_rate: form.lstm_learning_rate,
+      epochs: form.lstm_epochs,
+      batch_size: form.lstm_batch_size,
+      validation_split: 0,
+    };
+
+    try {
+      const response = await lstmAPI.train(payload);
+      setLstmJob(response.data);
+    } catch (trainingError) {
+      console.error('Failed to train LSTM generator:', trainingError);
+      setLstmError('Failed to train LSTM generator. Use at least sequence length + 2 preview rows and try smoke-test settings first.');
+    } finally {
+      setIsTrainingLstm(false);
+    }
+  };
+
+  const generateStandaloneLstm = async () => {
+    if (!lstmJob || lstmJob.status !== 'completed') {
+      setLstmError('Train a completed LSTM job before generating synthetic candles.');
+      return;
+    }
+
+    setIsGeneratingLstm(true);
+    setLstmError(null);
+
+    try {
+      const response = await lstmAPI.generate({
+        job_id: lstmJob.id,
+        num_steps: form.generated_steps || 25,
+      });
+      setLstmGeneration(response.data);
+    } catch (generationError) {
+      console.error('Failed to generate LSTM candles:', generationError);
+      setLstmError('Failed to generate synthetic candles from the selected LSTM job.');
+    } finally {
+      setIsGeneratingLstm(false);
+    }
+  };
+
+  const refreshLstmJob = async () => {
+    if (!lstmJob) {
+      return;
+    }
+    try {
+      const response = await lstmAPI.getJob(lstmJob.id);
+      setLstmJob(response.data);
+    } catch (refreshError) {
+      console.error('Failed to refresh LSTM job:', refreshError);
+      setLstmError('Failed to refresh LSTM training status.');
+    }
+  };
+
   const startRlTraining = async () => {
     setIsTrainingRl(true);
     setRlError(null);
@@ -212,6 +304,12 @@ export function SimulationPage() {
             <TextField label="End date" type="date" value={form.end_date ?? ''} onChange={(value) => updateForm('end_date', value)} />
             <TextField label="Output directory" value={form.output_dir} onChange={(value) => updateForm('output_dir', value)} />
             <NumberField label="Generated steps" value={form.generated_steps ?? 0} onChange={(value) => updateForm('generated_steps', value)} />
+            <NumberField label="LSTM sequence length" value={form.sequence_length} onChange={(value) => updateForm('sequence_length', value)} />
+            <NumberField label="LSTM units layer 1" value={form.lstm_units_1} onChange={(value) => updateForm('lstm_units_1', value)} />
+            <NumberField label="LSTM units layer 2" value={form.lstm_units_2} onChange={(value) => updateForm('lstm_units_2', value)} />
+            <NumberField label="LSTM epochs" value={form.lstm_epochs} onChange={(value) => updateForm('lstm_epochs', value)} />
+            <NumberField label="LSTM batch size" value={form.lstm_batch_size} onChange={(value) => updateForm('lstm_batch_size', value)} />
+            <NumberField label="LSTM learning rate" step="0.0001" value={form.lstm_learning_rate} onChange={(value) => updateForm('lstm_learning_rate', value)} />
             <SelectField
               label="RL algorithm"
               value={form.rl_algorithm}
@@ -251,6 +349,17 @@ export function SimulationPage() {
         </form>
 
         <aside className="space-y-6">
+          <LSTMGenerationPanel
+            job={lstmJob}
+            generation={lstmGeneration}
+            error={lstmError}
+            isTraining={isTrainingLstm}
+            isGenerating={isGeneratingLstm}
+            hasMarketData={Boolean(marketData?.rows.length)}
+            onTrain={trainStandaloneLstm}
+            onGenerate={generateStandaloneLstm}
+            onRefresh={refreshLstmJob}
+          />
           <RLTrainingPanel
             job={rlJob}
             error={rlError}
@@ -263,6 +372,124 @@ export function SimulationPage() {
           <ArtifactList artifacts={artifacts} isLoading={isLoadingArtifacts} />
         </aside>
       </section>
+    </div>
+  );
+}
+
+
+function LSTMGenerationPanel({
+  job,
+  generation,
+  error,
+  isTraining,
+  isGenerating,
+  hasMarketData,
+  onTrain,
+  onGenerate,
+  onRefresh,
+}: {
+  job: LSTMJob | null;
+  generation: LSTMGenerationResult | null;
+  error: string | null;
+  isTraining: boolean;
+  isGenerating: boolean;
+  hasMarketData: boolean;
+  onTrain: () => void;
+  onGenerate: () => void;
+  onRefresh: () => void;
+}) {
+  const statusTone = job?.status === 'completed' ? 'success' : job?.status === 'failed' ? 'error' : 'warning';
+  const canGenerate = job?.status === 'completed';
+
+  return (
+    <div className="space-y-4 rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
+      <div>
+        <h3 className="text-xl font-semibold text-white">Synthetic data (LSTM)</h3>
+        <p className="mt-1 text-sm text-slate-400">
+          Train a standalone LSTM generator from the market-data preview, then generate synthetic OHLCV candles for simulations.
+        </p>
+      </div>
+
+      {!hasMarketData && <StatusBanner tone="warning" message="Preview market data first so the LSTM trainer has source candles." />}
+      {error && <StatusBanner tone="error" message={error} />}
+
+      <div className="flex flex-wrap gap-3">
+        <button
+          type="button"
+          disabled={isTraining || !hasMarketData}
+          onClick={onTrain}
+          className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {isTraining ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
+          {isTraining ? 'Training...' : 'Train LSTM'}
+        </button>
+        <button
+          type="button"
+          disabled={isGenerating || !canGenerate}
+          onClick={onGenerate}
+          className="inline-flex items-center gap-2 rounded-xl border border-brand-500/60 px-4 py-2 text-sm font-semibold text-brand-100 hover:bg-brand-500/10 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {isGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <LineChart className="h-4 w-4" />}
+          {isGenerating ? 'Generating...' : 'Generate candles'}
+        </button>
+        {job && (
+          <button type="button" onClick={onRefresh} className="rounded-xl border border-slate-700 px-4 py-2 text-sm text-slate-200 hover:bg-slate-800">
+            Refresh status
+          </button>
+        )}
+      </div>
+
+      {job ? (
+        <div className="space-y-3">
+          <StatusBanner tone={statusTone} message={`LSTM job status: ${job.status}`} />
+          <p className="break-all text-xs text-slate-500">Job ID: {job.id}</p>
+          {job.error && <StatusBanner tone="error" message={job.error} />}
+          {job.result && (
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Metric label="Features" value={job.result.features.join(', ')} />
+              <Metric label="Rows trained" value={job.result.row_count.toString()} />
+              <Metric label="Sequence length" value={job.result.sequence_length.toString()} />
+              <Metric label="Final loss" value={job.result.final_loss === null ? 'n/a' : formatNumber(job.result.final_loss, 6)} />
+            </div>
+          )}
+        </div>
+      ) : (
+        <p className="text-sm text-slate-400">No standalone LSTM job has been started from this page.</p>
+      )}
+
+      {generation && (
+        <div className="space-y-3">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Metric label="Generated rows" value={generation.row_count.toString()} />
+            <Metric label="Generated features" value={generation.features.join(', ')} />
+          </div>
+          <GeneratedCandleChart rows={generation.rows} />
+          <div className="overflow-x-auto rounded-xl border border-slate-800">
+            <table className="min-w-full divide-y divide-slate-800 text-sm">
+              <thead className="bg-slate-900/80 text-left text-xs uppercase tracking-wide text-slate-400">
+                <tr>
+                  <th className="px-3 py-2">Step</th>
+                  <th className="px-3 py-2">Open</th>
+                  <th className="px-3 py-2">High</th>
+                  <th className="px-3 py-2">Low</th>
+                  <th className="px-3 py-2">Close</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-800 text-slate-200">
+                {generation.rows.slice(0, 6).map((row) => (
+                  <tr key={row.step}>
+                    <td className="px-3 py-2 text-slate-400">{row.step}</td>
+                    <td className="px-3 py-2">{formatOptionalNumber(row.open)}</td>
+                    <td className="px-3 py-2">{formatOptionalNumber(row.high)}</td>
+                    <td className="px-3 py-2">{formatOptionalNumber(row.low)}</td>
+                    <td className="px-3 py-2 font-medium text-white">{formatOptionalNumber(row.close)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -419,6 +646,38 @@ function MarketDataPreview({
   );
 }
 
+
+function GeneratedCandleChart({ rows }: { rows: GeneratedCandleRow[] }) {
+  const chartRows = rows.filter((row) => row.close !== null).slice(-24);
+  if (chartRows.length < 2) {
+    return <p className="text-sm text-slate-500">Generate at least two synthetic rows to draw a close-price sparkline.</p>;
+  }
+
+  const closes = chartRows.map((row) => row.close ?? 0);
+  const min = Math.min(...closes);
+  const max = Math.max(...closes);
+  const range = max - min || 1;
+  const points = chartRows
+    .map((row, index) => {
+      const x = (index / (chartRows.length - 1)) * 100;
+      const y = 100 - (((row.close ?? min) - min) / range) * 100;
+      return `${x},${y}`;
+    })
+    .join(' ');
+
+  return (
+    <div className="rounded-xl border border-slate-800 bg-slate-950 p-3">
+      <div className="mb-2 flex items-center justify-between text-xs text-slate-400">
+        <span>Synthetic close preview</span>
+        <span>{formatNumber(min)} – {formatNumber(max)}</span>
+      </div>
+      <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="h-24 w-full overflow-visible">
+        <polyline points={points} fill="none" stroke="currentColor" strokeWidth="2" className="text-indigo-300" vectorEffect="non-scaling-stroke" />
+      </svg>
+    </div>
+  );
+}
+
 function ClosePreviewChart({ rows }: { rows: OHLCVRow[] }) {
   if (rows.length < 2) {
     return <p className="text-sm text-slate-500">Load at least two rows to draw a close-price sparkline.</p>;
@@ -458,6 +717,10 @@ function formatTimestamp(value: string) {
 
 function formatNumber(value: number, maximumFractionDigits = 4) {
   return new Intl.NumberFormat(undefined, { maximumFractionDigits }).format(value);
+}
+
+function formatOptionalNumber(value: number | null, maximumFractionDigits = 4) {
+  return value === null ? 'n/a' : formatNumber(value, maximumFractionDigits);
 }
 
 function ResultSummary({ simulation, onRefresh }: { simulation: SimulationRun | null; onRefresh: () => void }) {
