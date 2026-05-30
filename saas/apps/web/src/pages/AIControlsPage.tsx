@@ -99,8 +99,8 @@ export function AIControlsPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h2 className="text-3xl font-bold text-white">RL / LSTM Controls</h2>
-        <p className="mt-2 text-slate-400">Standalone training controls for the backend LSTM generator and pivot-grid reinforcement-learning jobs.</p>
+        <h2 className="text-3xl font-bold text-white">Advanced/Lab RL / LSTM Controls</h2>
+        <p className="mt-2 text-slate-400">Advanced/Lab standalone training controls for the backend LSTM generator and pivot-grid reinforcement-learning jobs.</p>
       </div>
 
       {error && <ErrorState message={error} />}

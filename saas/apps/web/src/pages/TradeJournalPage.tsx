@@ -59,8 +59,8 @@ export function TradeJournalPage() {
     <div className="space-y-8">
       <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
         <div>
-          <h2 className="text-3xl font-bold text-white">Trade Journal</h2>
-          <p className="mt-2 text-slate-400">Audit persisted trades, generated simulation artifacts, and import/export boundaries in one dedicated journal workspace.</p>
+          <h2 className="text-3xl font-bold text-white">Advanced/Lab Trade Journal</h2>
+          <p className="mt-2 text-slate-400">Advanced/Lab workspace to audit persisted trades, generated simulation artifacts, and import/export boundaries.</p>
         </div>
         <button type="button" onClick={exportJournal} disabled={isExporting} className="rounded-lg bg-cyan-500 px-4 py-2 font-semibold text-slate-950 hover:bg-cyan-400 disabled:opacity-60">
           {isExporting ? 'Preparing export...' : 'Prepare export'}

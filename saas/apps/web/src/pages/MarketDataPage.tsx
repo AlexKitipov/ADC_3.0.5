@@ -56,8 +56,8 @@ export function MarketDataPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h2 className="text-3xl font-bold text-white">Market Data</h2>
-        <p className="mt-2 text-slate-400">Fetch backend OHLCV candles and run stateless indicator diagnostics before creating signals or simulations.</p>
+        <h2 className="text-3xl font-bold text-white">Advanced/Lab Market Data</h2>
+        <p className="mt-2 text-slate-400">Advanced/Lab diagnostics for fetching backend OHLCV candles and running stateless indicators before signal or simulation work.</p>
       </div>
 
       <form onSubmit={handleSubmit} className="grid gap-4 rounded-2xl border border-slate-800 bg-slate-900/60 p-5 md:grid-cols-[1fr_12rem_auto]">
