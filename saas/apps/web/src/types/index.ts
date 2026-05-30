@@ -224,6 +224,14 @@ export type DrawdownPoint = DrawdownCurvePoint;
 
 
 // Market data schemas: apps/api/app/schemas/market_data.py
+export interface MarketTick {
+  symbol: string;
+  price: number;
+  bid: number;
+  ask: number;
+  timestamp: string;
+}
+
 export type MarketDataTimeframe = '1d' | '1min' | '5min' | '15min' | '30min' | '60min';
 
 export interface MarketDataRequest {

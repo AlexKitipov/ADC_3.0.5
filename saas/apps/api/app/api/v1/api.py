@@ -8,6 +8,7 @@ from app.api.v1.endpoints import (
     indicators,
     lstm,
     market_data,
+    market_stream,
     orders,
     rl,
     sessions,
@@ -30,5 +31,6 @@ api_router.include_router(lstm.router, prefix="/lstm", tags=["LSTM Generation"])
 api_router.include_router(sessions.router, prefix="/sessions", tags=["Sessions"])
 api_router.include_router(settings.router, prefix="/settings", tags=["Settings"])
 api_router.include_router(market_data.router, prefix="/market-data", tags=["Market Data"])
+api_router.include_router(market_stream.router, prefix="/market-stream", tags=["Market Stream"])
 api_router.include_router(strategy.router, prefix="/strategy", tags=["Strategy"])
 api_router.include_router(simulations.router, prefix="/simulations", tags=["Simulations"])

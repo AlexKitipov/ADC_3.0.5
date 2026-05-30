@@ -37,6 +37,7 @@ from app.schemas.rl import (
 )
 from app.schemas.market_data import (
     MarketDataQuery,
+    MarketTickSchema,
     MarketDataResponse,
     MarketDataTimeframe,
     OHLCVRow,
@@ -71,6 +72,7 @@ __all__ = [
     "LSTMTrainRequest",
     "LSTMTrainingResultSchema",
     "MarketDataQuery",
+    "MarketTickSchema",
     "MarketDataResponse",
     "MarketDataTimeframe",
     "OHLCVRow",
