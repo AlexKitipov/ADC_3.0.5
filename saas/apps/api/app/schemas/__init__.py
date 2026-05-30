@@ -16,6 +16,7 @@ from app.schemas.indicators import (
     IndicatorRow,
     IndicatorValues,
 )
+from app.schemas.orders import BrokerResult, Order, OrderClose, OrderCreate, OrderType
 from app.schemas.market_data import (
     MarketDataQuery,
     MarketDataResponse,
@@ -48,6 +49,11 @@ __all__ = [
     "MarketDataResponse",
     "MarketDataTimeframe",
     "OHLCVRow",
+    "BrokerResult",
+    "Order",
+    "OrderClose",
+    "OrderCreate",
+    "OrderType",
     "Signal",
     "SignalAction",
     "SignalCreate",

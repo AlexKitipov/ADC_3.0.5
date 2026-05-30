@@ -1,21 +1,29 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
+import { ordersAPI } from '../api/orders';
 import { tradesAPI } from '../api/trades';
 import { LoadingState } from '../components/LoadingState';
-import type { Trade } from '../types';
+import type { Order, OrderType, Trade } from '../types';
 import { formatCurrency, formatDateTime, formatPercent } from '../lib/format';
 
 interface TradesData {
   openTrades: Trade[];
   closedTrades: Trade[];
+  openOrders: Order[];
 }
+
+const ORDER_TYPES: OrderType[] = ['BUY', 'SELL', 'BUYSTOP', 'SELLSTOP', 'BUYLIMIT', 'SELLLIMIT'];
 
 export async function loadTrades(): Promise<TradesData> {
   try {
-    const [openResponse, closedResponse] = await Promise.all([tradesAPI.getOpen(), tradesAPI.getClosed()]);
-    return { openTrades: openResponse.data, closedTrades: closedResponse.data };
+    const [openResponse, closedResponse, ordersResponse] = await Promise.all([
+      tradesAPI.getOpen(),
+      tradesAPI.getClosed(),
+      ordersAPI.getOpen(),
+    ]);
+    return { openTrades: openResponse.data, closedTrades: closedResponse.data, openOrders: ordersResponse.data };
   } catch {
-    throw new Error('Trades could not be loaded.');
+    throw new Error('Trades and manual orders could not be loaded.');
   }
 }
 
@@ -40,6 +48,53 @@ export async function closeSimpleTrade(tradeId: number, exitPrice: number): Prom
   return response.data;
 }
 
+export async function submitManualOrder(
+  symbol: string,
+  orderType: OrderType,
+  volume: number,
+  price: number,
+  stopLoss: number,
+  takeProfit: number,
+  slippage: number,
+): Promise<Order> {
+  if (!symbol.trim()) {
+    throw new Error('Order symbol is required.');
+  }
+  if (!Number.isFinite(volume) || volume <= 0) {
+    throw new Error('Order volume must be greater than zero.');
+  }
+  if (!Number.isFinite(price) || price <= 0) {
+    throw new Error('Order price must be greater than zero.');
+  }
+  if (stopLoss < 0 || takeProfit < 0 || slippage < 0) {
+    throw new Error('Stops and slippage cannot be negative.');
+  }
+
+  const response = await ordersAPI.createOrder({
+    symbol: symbol.trim().toUpperCase(),
+    order_type: orderType,
+    volume,
+    price,
+    stop_loss: stopLoss || 0,
+    take_profit: takeProfit || 0,
+    slippage,
+    comment: 'manual-order',
+  });
+  return response.data;
+}
+
+export async function closeManualOrder(ticket: number, price: number, slippage: number): Promise<Order> {
+  if (!Number.isFinite(price) || price <= 0) {
+    throw new Error('Close price must be greater than zero.');
+  }
+  if (slippage < 0) {
+    throw new Error('Slippage cannot be negative.');
+  }
+
+  const response = await ordersAPI.closeOrder(ticket, { price, slippage, exit_reason: 'manual-close' });
+  return response.data;
+}
+
 function removeExitPrice(exitPrices: Record<number, string>, tradeId: number): Record<number, string> {
   return Object.fromEntries(Object.entries(exitPrices).filter(([currentTradeId]) => Number(currentTradeId) !== tradeId));
 }
@@ -47,19 +102,30 @@ function removeExitPrice(exitPrices: Record<number, string>, tradeId: number): R
 export function TradesPage() {
   const [openTrades, setOpenTrades] = useState<Trade[]>([]);
   const [closedTrades, setClosedTrades] = useState<Trade[]>([]);
+  const [openOrders, setOpenOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [symbol, setSymbol] = useState('');
   const [entryPrice, setEntryPrice] = useState('');
   const [exitPrices, setExitPrices] = useState<Record<number, string>>({});
+  const [orderSymbol, setOrderSymbol] = useState('EURUSD');
+  const [orderType, setOrderType] = useState<OrderType>('BUY');
+  const [orderVolume, setOrderVolume] = useState('0.1');
+  const [orderPrice, setOrderPrice] = useState('1.0851');
+  const [orderStopLoss, setOrderStopLoss] = useState('');
+  const [orderTakeProfit, setOrderTakeProfit] = useState('');
+  const [orderSlippage, setOrderSlippage] = useState('100');
+  const [orderClosePrices, setOrderClosePrices] = useState<Record<number, string>>({});
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [orderMessage, setOrderMessage] = useState<string | null>(null);
 
   const refreshTrades = useCallback(
     () =>
       loadTrades()
-        .then(({ openTrades: nextOpenTrades, closedTrades: nextClosedTrades }) => {
+        .then(({ openTrades: nextOpenTrades, closedTrades: nextClosedTrades, openOrders: nextOpenOrders }) => {
           setOpenTrades(nextOpenTrades);
           setClosedTrades(nextClosedTrades);
+          setOpenOrders(nextOpenOrders);
         })
         .catch((error: Error) => setErrorMessage(error.message))
         .finally(() => setIsLoading(false)),
@@ -99,6 +165,42 @@ export function TradesPage() {
       .finally(() => setIsSaving(false));
   };
 
+  const handleSubmitManualOrder = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setIsSaving(true);
+    setOrderMessage(null);
+
+    submitManualOrder(
+      orderSymbol,
+      orderType,
+      Number(orderVolume),
+      Number(orderPrice),
+      Number(orderStopLoss || 0),
+      Number(orderTakeProfit || 0),
+      Number(orderSlippage || 0),
+    )
+      .then((order) => {
+        setOpenOrders((currentOrders) => [order, ...currentOrders]);
+        setOrderMessage(order.broker_result.message);
+      })
+      .catch((error: Error) => setOrderMessage(error.message))
+      .finally(() => setIsSaving(false));
+  };
+
+  const handleCloseManualOrder = (ticket: number) => {
+    setIsSaving(true);
+    setOrderMessage(null);
+
+    closeManualOrder(ticket, Number(orderClosePrices[ticket]), Number(orderSlippage || 0))
+      .then((order) => {
+        setOpenOrders((currentOrders) => currentOrders.filter((openOrder) => openOrder.ticket !== order.ticket));
+        setOrderClosePrices((currentPrices) => removeExitPrice(currentPrices, ticket));
+        setOrderMessage(order.broker_result.message);
+      })
+      .catch((error: Error) => setOrderMessage(error.message))
+      .finally(() => setIsSaving(false));
+  };
+
   if (isLoading) {
     return <LoadingState label="Loading trades..." />;
   }
@@ -108,9 +210,47 @@ export function TradesPage() {
       <div>
         <h2 className="text-3xl font-bold text-white">Trades</h2>
         <p className="mt-2 text-slate-400">
-          Review open positions and closed trade performance. Actions here create and close simple persisted trade records; they do not submit broker orders.
+          Review persisted trade journal rows separately from manual mock-broker orders. Manual order actions submit to the order-management layer and do not create Trade records.
         </p>
       </div>
+
+      <section className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-5">
+        <h3 className="text-lg font-semibold text-amber-100">Manual broker order</h3>
+        <p className="mt-1 text-sm text-amber-100/80">
+          Risk-sensitive controls route to the mock broker. Confirm symbol, side, volume, price, stops, and slippage before submitting.
+        </p>
+        <form className="mt-4 grid gap-4 lg:grid-cols-7" onSubmit={handleSubmitManualOrder}>
+          <label className="text-sm font-medium text-slate-300">
+            Symbol
+            <input className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none focus:border-amber-300" disabled={isSaving} onChange={(event) => setOrderSymbol(event.target.value)} value={orderSymbol} />
+          </label>
+          <label className="text-sm font-medium text-slate-300">
+            Type
+            <select className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none focus:border-amber-300" disabled={isSaving} onChange={(event) => setOrderType(event.target.value as OrderType)} value={orderType}>
+              {ORDER_TYPES.map((type) => (
+                <option key={type} value={type}>{type}</option>
+              ))}
+            </select>
+          </label>
+          <NumberField disabled={isSaving} label="Volume" onChange={setOrderVolume} step="0.01" value={orderVolume} />
+          <NumberField disabled={isSaving} label="Price" onChange={setOrderPrice} step="0.00001" value={orderPrice} />
+          <NumberField disabled={isSaving} label="Stop loss" onChange={setOrderStopLoss} placeholder="Optional" step="0.00001" value={orderStopLoss} />
+          <NumberField disabled={isSaving} label="Take profit" onChange={setOrderTakeProfit} placeholder="Optional" step="0.00001" value={orderTakeProfit} />
+          <NumberField disabled={isSaving} label="Slippage" onChange={setOrderSlippage} step="1" value={orderSlippage} />
+          <button className="rounded-lg bg-amber-300 px-4 py-2 font-semibold text-slate-950 transition hover:bg-amber-200 disabled:cursor-not-allowed disabled:opacity-60 lg:col-span-7" disabled={isSaving} type="submit">
+            Submit manual order
+          </button>
+        </form>
+        {orderMessage && <p className="mt-4 text-sm text-amber-100">{orderMessage}</p>}
+      </section>
+
+      <OrderTable
+        closePrices={orderClosePrices}
+        isSaving={isSaving}
+        onCloseOrder={handleCloseManualOrder}
+        onClosePriceChange={(ticket, price) => setOrderClosePrices((currentPrices) => ({ ...currentPrices, [ticket]: price }))}
+        orders={openOrders}
+      />
 
       <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
         <h3 className="text-lg font-semibold text-white">Open a simple trade record</h3>
@@ -159,6 +299,55 @@ export function TradesPage() {
       />
       <TradeTable title="Closed Trades" trades={closedTrades} showExit />
     </div>
+  );
+}
+
+function NumberField({ disabled, label, onChange, placeholder, step, value }: { disabled: boolean; label: string; onChange: (value: string) => void; placeholder?: string; step: string; value: string }) {
+  return (
+    <label className="text-sm font-medium text-slate-300">
+      {label}
+      <input className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none focus:border-amber-300" disabled={disabled} min="0" onChange={(event) => onChange(event.target.value)} placeholder={placeholder} step={step} type="number" value={value} />
+    </label>
+  );
+}
+
+function OrderTable({ closePrices, isSaving, onCloseOrder, onClosePriceChange, orders }: { closePrices: Record<number, string>; isSaving: boolean; onCloseOrder: (ticket: number) => void; onClosePriceChange: (ticket: number, price: string) => void; orders: Order[] }) {
+  return (
+    <section className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/60">
+      <div className="border-b border-slate-800 px-5 py-4">
+        <h3 className="text-lg font-semibold text-white">Open Manual Orders</h3>
+        <p className="mt-1 text-sm text-slate-400">Mock-broker orders are session-scoped and separate from persisted trade journal rows.</p>
+      </div>
+      <table className="min-w-full divide-y divide-slate-800">
+        <thead>
+          <tr>
+            {['Ticket', 'Symbol', 'Type', 'Volume', 'Open price', 'SL / TP', 'Opened', 'Close'].map((header) => (
+              <th key={header} className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">{header}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-slate-800">
+          {orders.map((order) => (
+            <tr key={order.ticket}>
+              <td className="px-5 py-4 font-semibold text-white">{order.ticket}</td>
+              <td className="px-5 py-4 text-slate-300">{order.symbol}</td>
+              <td className="px-5 py-4 text-slate-300">{order.order_type}</td>
+              <td className="px-5 py-4 text-slate-300">{order.volume}</td>
+              <td className="px-5 py-4 text-slate-300">{formatCurrency(order.price)}</td>
+              <td className="px-5 py-4 text-slate-300">{order.stop_loss || '—'} / {order.take_profit || '—'}</td>
+              <td className="px-5 py-4 text-slate-400">{formatDateTime(order.open_time)}</td>
+              <td className="px-5 py-4">
+                <div className="flex gap-2">
+                  <input aria-label={`Close price for order ${order.ticket}`} className="w-28 rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none focus:border-amber-300" disabled={isSaving} min="0" onChange={(event) => onClosePriceChange(order.ticket, event.target.value)} placeholder="Close" step="0.00001" type="number" value={closePrices[order.ticket] ?? ''} />
+                  <button className="rounded-lg border border-slate-700 px-3 py-2 text-sm font-semibold text-slate-200 transition hover:border-amber-300 hover:text-amber-100 disabled:cursor-not-allowed disabled:opacity-60" disabled={isSaving} onClick={() => onCloseOrder(order.ticket)} type="button">Close order</button>
+                </div>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {orders.length === 0 && <p className="p-6 text-center text-slate-400">No open manual orders.</p>}
+    </section>
   );
 }
 

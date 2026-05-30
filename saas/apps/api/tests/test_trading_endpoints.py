@@ -235,3 +235,99 @@ def test_user_settings_can_be_created_and_read() -> None:
     assert body["timeframe"] == "4h"
     assert body["enable_trading"] is True
     assert body["email_notifications"] is False
+
+
+def test_manual_order_lifecycle_is_user_scoped_and_not_persisted_trade() -> None:
+    first_token = register_and_login()
+    second_token = register_and_login()
+
+    create_response = client.post(
+        "/api/v1/orders",
+        json={
+            "symbol": "eurusd",
+            "order_type": "BUY",
+            "volume": 0.1,
+            "price": 1.0851,
+            "stop_loss": 1.0840,
+            "take_profit": 1.0870,
+            "slippage": 100,
+        },
+        headers=auth_headers(first_token),
+    )
+    ticket = create_response.json()["ticket"]
+    other_user_get_response = client.get(
+        f"/api/v1/orders/{ticket}", headers=auth_headers(second_token)
+    )
+    open_orders_response = client.get(
+        "/api/v1/orders/open", headers=auth_headers(first_token)
+    )
+    persisted_trades_response = client.get(
+        "/api/v1/trades/open", headers=auth_headers(first_token)
+    )
+    close_response = client.post(
+        f"/api/v1/orders/{ticket}/close",
+        json={"price": 1.0850, "slippage": 100},
+        headers=auth_headers(first_token),
+    )
+    open_after_close_response = client.get(
+        "/api/v1/orders/open", headers=auth_headers(first_token)
+    )
+
+    assert create_response.status_code == 201
+    assert create_response.json()["symbol"] == "EURUSD"
+    assert create_response.json()["order_type"] == "BUY"
+    assert create_response.json()["broker_result"] == {
+        "status": "open",
+        "error_code": 0,
+        "message": "Order accepted by broker.",
+    }
+    assert other_user_get_response.status_code == 404
+    assert [order["ticket"] for order in open_orders_response.json()] == [ticket]
+    assert persisted_trades_response.status_code == 200
+    assert persisted_trades_response.json() == []
+    assert close_response.status_code == 200
+    assert close_response.json()["status"] == "closed"
+    assert close_response.json()["broker_result"]["message"] == "Order closed by broker."
+    assert open_after_close_response.status_code == 200
+    assert open_after_close_response.json() == []
+
+
+def test_manual_order_validation_and_broker_errors_are_consistent() -> None:
+    token = register_and_login()
+
+    invalid_schema_response = client.post(
+        "/api/v1/orders",
+        json={"symbol": "EURUSD", "order_type": "BUY", "volume": 0, "price": 1.0851},
+        headers=auth_headers(token),
+    )
+    invalid_stop_response = client.post(
+        "/api/v1/orders",
+        json={
+            "symbol": "EURUSD",
+            "order_type": "BUY",
+            "volume": 0.1,
+            "price": 1.0851,
+            "stop_loss": 1.0900,
+            "slippage": 100,
+        },
+        headers=auth_headers(token),
+    )
+    missing_close_response = client.post(
+        "/api/v1/orders/999999/close",
+        json={"price": 1.0850},
+        headers=auth_headers(token),
+    )
+
+    assert invalid_schema_response.status_code == 422
+    assert invalid_stop_response.status_code == 422
+    assert invalid_stop_response.json()["detail"] == {
+        "status": "rejected",
+        "error_code": 132,
+        "message": "Stop loss or take profit violates broker stop-level rules.",
+    }
+    assert missing_close_response.status_code == 404
+    assert missing_close_response.json()["detail"] == {
+        "status": "not_found",
+        "error_code": 140,
+        "message": "Order not found.",
+    }
