@@ -157,6 +157,55 @@ export interface MarketDataResponse extends MarketDataRequest {
   row_count: number;
 }
 
+// Indicator schemas: apps/api/app/schemas/indicators.py
+export type IndicatorCalculationMode = 'stateless';
+
+export interface IndicatorParameters {
+  rsi_period: number;
+  macd_fast: number;
+  macd_slow: number;
+  macd_signal: number;
+  bollinger_period: number;
+  bollinger_std: number;
+  atr_period: number;
+}
+
+export interface IndicatorCalculationRequest {
+  rows: OHLCVRow[];
+  parameters?: IndicatorParameters;
+}
+
+export interface IndicatorValues {
+  rsi: number | null;
+  macd: number | null;
+  macd_signal: number | null;
+  macd_hist: number | null;
+  bollinger_upper: number | null;
+  bollinger_middle: number | null;
+  bollinger_lower: number | null;
+  atr: number | null;
+  pivot: number | null;
+  r1: number | null;
+  s1: number | null;
+  r2: number | null;
+  s2: number | null;
+  rsi_crosses: number;
+}
+
+export interface IndicatorRow {
+  timestamp: string;
+  symbol: string;
+  close: number;
+  indicators: IndicatorValues;
+}
+
+export interface IndicatorCalculationResponse {
+  calculation_mode: IndicatorCalculationMode;
+  row_count: number;
+  parameters: IndicatorParameters;
+  rows: IndicatorRow[];
+}
+
 // Simulation schemas: apps/api/app/schemas/simulations.py
 export interface SimulationRequest {
   symbol?: string;
