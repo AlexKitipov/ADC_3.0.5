@@ -7,6 +7,8 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from app.models import User
 from app.schemas.orders import BrokerResult, Order, OrderClose, OrderCreate, OrderType
 from app.security import get_current_user
+from app.services.broker.base import BrokerClient
+from app.services.broker.providers import get_broker_client
 from app.services.order_management import (
     ERR_BROKER_BUSY,
     ERR_CLOSE_TIMEOUT,
@@ -24,8 +26,6 @@ from app.services.order_management import (
     ERR_SERVER_BUSY,
     ERR_TRADE_CONTEXT_BUSY,
     ERR_TRADE_DISABLED,
-    MockBrokerAPI,
-    OrderManager,
     OP_BUY,
     OP_BUYLIMIT,
     OP_BUYSTOP,
@@ -44,13 +44,13 @@ _ORDER_TYPE_TO_CMD = {
     OrderType.BUYLIMIT: OP_BUYLIMIT,
     OrderType.SELLLIMIT: OP_SELLLIMIT,
 }
-_CMD_TO_ORDER_TYPE = {command: order_type for order_type, command in _ORDER_TYPE_TO_CMD.items()}
+_CMD_TO_ORDER_TYPE = {
+    command: order_type for order_type, command in _ORDER_TYPE_TO_CMD.items()
+}
 
-# This PR exposes the existing mock broker rather than creating persisted Trade
-# rows. Ownership is tracked in process so authenticated users only see orders
-# submitted through their own session while broker state remains non-durable.
-_broker_api = MockBrokerAPI(trade_allowed=True)
-_order_manager = OrderManager(_broker_api)
+# Manual broker orders remain separate from persisted Trade rows. Ownership is
+# tracked in process so authenticated users only see orders submitted through
+# their own session while broker state remains non-durable.
 _order_owners: dict[int, int] = {}
 
 _ERROR_STATUS = {
@@ -106,20 +106,31 @@ def _broker_exception(error_code: int, fallback: str) -> HTTPException:
     )
 
 
-def _owned_order(ticket: int, user_id: int) -> dict[str, Any]:
+def _owned_order(
+    ticket: int, user_id: int, broker_client: BrokerClient
+) -> dict[str, Any]:
     """Return an order if it belongs to the user, otherwise raise 404."""
 
-    order = _broker_api._open_orders.get(ticket)
+    order = broker_client.get_order(ticket)
     if order is None or _order_owners.get(ticket) != user_id:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail={"status": "not_found", "error_code": ERR_INVALID_TICKET, "message": "Order not found."},
+            detail={
+                "status": "not_found",
+                "error_code": ERR_INVALID_TICKET,
+                "message": "Order not found.",
+            },
         )
     return order
 
 
-def _serialize_order(order: dict[str, Any], *, slippage: int | None = None, message: str = "Order loaded.") -> Order:
-    """Serialize a mock broker order dictionary to the public response model."""
+def _serialize_order(
+    order: dict[str, Any],
+    *,
+    slippage: int | None = None,
+    message: str = "Order loaded."
+) -> Order:
+    """Serialize a broker order dictionary to the public response model."""
 
     return Order(
         ticket=order["ticket"],
@@ -131,7 +142,9 @@ def _serialize_order(order: dict[str, Any], *, slippage: int | None = None, mess
         take_profit=order["tp"],
         slippage=slippage,
         status=order["status"],
-        broker_result=BrokerResult(status=order["status"], error_code=0, message=message),
+        broker_result=BrokerResult(
+            status=order["status"], error_code=0, message=message
+        ),
         open_time=order["open_time"],
         close_price=order.get("close_price"),
         close_time=order.get("close_time"),
@@ -142,26 +155,19 @@ def _serialize_order(order: dict[str, Any], *, slippage: int | None = None, mess
 def create_order(
     order: OrderCreate,
     current_user: User = Depends(get_current_user),
+    broker_client: BrokerClient = Depends(get_broker_client),
 ) -> Order:
-    """Submit a manual order to the mock broker without persisting a Trade row."""
+    """Submit a manual broker order without persisting a Trade row."""
 
-    ticket = _order_manager.send_order_reliable(
-        symbol=order.symbol.upper(),
-        cmd=_ORDER_TYPE_TO_CMD[order.order_type],
-        volume=order.volume,
-        price=order.price,
-        slippage=order.slippage,
-        stoploss=order.stop_loss,
-        takeprofit=order.take_profit,
-        comment=order.comment,
-        magic=order.magic,
-    )
+    broker_order = broker_client.place_order(order)
+    ticket = broker_order.get("ticket", -1)
     if ticket == -1:
-        raise _broker_exception(_order_manager.get_last_error(), "Order was rejected.")
+        raise _broker_exception(broker_client.get_last_error(), "Order was rejected.")
 
     _order_owners[ticket] = current_user.id
-    broker_order = _owned_order(ticket, current_user.id)
-    return _serialize_order(broker_order, slippage=order.slippage, message="Order accepted by broker.")
+    return _serialize_order(
+        broker_order, slippage=order.slippage, message="Order accepted by broker."
+    )
 
 
 @router.post("/{ticket}/close", response_model=Order)
@@ -169,47 +175,54 @@ def close_order(
     ticket: int,
     order_close: OrderClose,
     current_user: User = Depends(get_current_user),
+    broker_client: BrokerClient = Depends(get_broker_client),
 ) -> Order:
     """Close an authenticated user's manual broker order."""
 
-    broker_order = _owned_order(ticket, current_user.id)
+    broker_order = _owned_order(ticket, current_user.id, broker_client)
     if broker_order["status"] != "open":
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail={"status": "closed", "error_code": ERR_INVALID_TICKET, "message": "Order is already closed."},
+            detail={
+                "status": "closed",
+                "error_code": ERR_INVALID_TICKET,
+                "message": "Order is already closed.",
+            },
         )
 
-    success = _order_manager.close_order_reliable(
-        ticket=ticket,
-        volume=order_close.volume or broker_order["volume"],
-        close_price=order_close.price,
-        slippage=order_close.slippage,
-        order_details=broker_order,
-        exit_reason=order_close.exit_reason,
-    )
-    if not success:
-        raise _broker_exception(_order_manager.get_last_error(), "Order close was rejected.")
+    closed_order = broker_client.close_order(ticket, order_close)
+    if closed_order.get("status") != "closed":
+        raise _broker_exception(
+            broker_client.get_last_error(), "Order close was rejected."
+        )
 
     return _serialize_order(
-        _owned_order(ticket, current_user.id),
+        closed_order,
         slippage=order_close.slippage,
         message="Order closed by broker.",
     )
 
 
 @router.get("/open", response_model=list[Order])
-def get_open_orders(current_user: User = Depends(get_current_user)) -> list[Order]:
+def get_open_orders(
+    current_user: User = Depends(get_current_user),
+    broker_client: BrokerClient = Depends(get_broker_client),
+) -> list[Order]:
     """Return currently open manual broker orders for the authenticated user."""
 
     return [
         _serialize_order(order)
-        for ticket, order in _broker_api._open_orders.items()
-        if order["status"] == "open" and _order_owners.get(ticket) == current_user.id
+        for order in broker_client.get_open_orders()
+        if _order_owners.get(order["ticket"]) == current_user.id
     ]
 
 
 @router.get("/{ticket}", response_model=Order)
-def get_order(ticket: int, current_user: User = Depends(get_current_user)) -> Order:
+def get_order(
+    ticket: int,
+    current_user: User = Depends(get_current_user),
+    broker_client: BrokerClient = Depends(get_broker_client),
+) -> Order:
     """Return one manual broker order for the authenticated user."""
 
-    return _serialize_order(_owned_order(ticket, current_user.id))
+    return _serialize_order(_owned_order(ticket, current_user.id, broker_client))
