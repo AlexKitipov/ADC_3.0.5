@@ -11,13 +11,17 @@ Implemented responsibilities:
 - Celery application setup backed by Redis
 - Environment-driven configuration for database, Redis, JWT, and SMTP settings
 
-Planned responsibilities:
+Primary endpoint responsibilities:
 
-- Authentication and account management
-- Strategy archive and experiment management
-- Market data ingestion orchestration
-- Backtesting/metrics services
-- Background worker entry points
+- Authentication and current-user profile management (`/api/v1/auth/*`)
+- Dashboard statistics, equity curves, and drawdown curves (`/api/v1/dashboard/*`)
+- User settings and strategy parameter metadata (`/api/v1/settings/*`, `/api/v1/strategy/parameters`)
+- Signal and simple trade-record persistence (`/api/v1/signals/*`, `/api/v1/trades/*`)
+- Market data, indicator calculation, simulation runs, RL jobs, and LSTM jobs
+- Broker/order-management simulations and trading-session orchestration
+- Market tick streaming over server-sent events
+- Email notifications and trade-journal import/export workflows
+- Static route contract tests that keep frontend API modules synchronized with backend routes
 
 ## API base path
 
@@ -26,6 +30,22 @@ The backend registers a single canonical frontend-facing REST API namespace:
 Clients, tests, deployment configuration, and reverse proxies should target the
 full versioned base URL, for example `http://localhost:8000/api/v1` in local
 development.
+
+
+## API documentation and contract validation
+
+The developer-facing API reference lives in `../../docs/api/README.md`. It is
+the hand-authored companion to the runtime FastAPI OpenAPI schema exposed by:
+
+- `GET /openapi.json`
+- `GET /docs`
+- `GET /redoc`
+
+Contract coverage lives in `tests/test_api_contracts.py`. The test uses static
+source inspection so it can validate the expected route set, `/api/v1` base path,
+frontend consumed paths, and documentation coverage without requiring optional
+runtime dependencies to be installed first. Update the route contract and the API
+docs in the same change whenever adding, renaming, or removing endpoints.
 
 ## Local development
 
