@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { dashboardAPI } from '../api/dashboard';
 import { LoadingState } from '../components/LoadingState';
+import { SessionControls } from '../components/SessionControls';
 import { StatCard } from '../components/StatCard';
 import type { DashboardStats, DrawdownCurvePoint, EquityCurvePoint } from '../types';
 import { formatCurrency, formatPercent } from '../lib/format';
@@ -131,6 +132,8 @@ export function DashboardPage() {
           </ul>
         </div>
       )}
+
+      <SessionControls />
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <StatCard

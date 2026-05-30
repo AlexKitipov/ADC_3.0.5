@@ -115,6 +115,52 @@ export interface Order {
   close_time: string | null;
 }
 
+
+// Trading-session schemas: apps/api/app/schemas/sessions.py
+export interface TradingSessionConfig {
+  symbol?: string;
+  initial_price?: number;
+  price_volatility?: number;
+  stream_interval?: number;
+  order_volume?: number;
+  slippage?: number;
+  magic?: number;
+  broker_error_rate?: number;
+  broker_trade_allowed?: boolean;
+  retry_attempts?: number;
+  sleep_time?: number;
+  sleep_maximum?: number;
+  max_close_duration?: number;
+  random_seed?: number | null;
+}
+
+export interface TradingSessionCreate {
+  config?: TradingSessionConfig;
+  auto_start?: boolean;
+}
+
+export interface SessionEvent {
+  type: string;
+  message: string;
+  timestamp: string;
+  details: Record<string, unknown>;
+}
+
+export interface TradingSessionState {
+  id: string;
+  status: 'created' | 'running' | 'stopped';
+  is_trading_active: boolean;
+  broker_trade_allowed: boolean;
+  symbol: string;
+  config: Required<Omit<TradingSessionConfig, 'random_seed'>> & { random_seed: number | null };
+  last_tick: Record<string, unknown> | null;
+  last_action: unknown;
+  open_positions: number;
+  event_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
 // Dashboard schemas: apps/api/app/schemas/dashboard.py
 export interface DashboardStats {
   total_balance: number;
