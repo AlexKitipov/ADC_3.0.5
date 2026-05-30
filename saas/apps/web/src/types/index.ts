@@ -70,6 +70,51 @@ export interface Trade {
   status: 'open' | 'closed' | (string & Record<never, never>);
 }
 
+
+// Order schemas: apps/api/app/schemas/orders.py
+export type OrderType = 'BUY' | 'SELL' | 'BUYSTOP' | 'SELLSTOP' | 'BUYLIMIT' | 'SELLLIMIT';
+
+export interface OrderCreate {
+  symbol: string;
+  order_type: OrderType;
+  volume: number;
+  price: number;
+  stop_loss?: number;
+  take_profit?: number;
+  slippage?: number;
+  comment?: string;
+  magic?: number;
+}
+
+export interface OrderClose {
+  volume?: number | null;
+  price: number;
+  slippage?: number;
+  exit_reason?: string;
+}
+
+export interface BrokerResult {
+  status: string;
+  error_code: number;
+  message: string;
+}
+
+export interface Order {
+  ticket: number;
+  symbol: string;
+  order_type: OrderType;
+  volume: number;
+  price: number;
+  stop_loss: number;
+  take_profit: number;
+  slippage: number | null;
+  status: string;
+  broker_result: BrokerResult;
+  open_time: string;
+  close_price: number | null;
+  close_time: string | null;
+}
+
 // Dashboard schemas: apps/api/app/schemas/dashboard.py
 export interface DashboardStats {
   total_balance: number;

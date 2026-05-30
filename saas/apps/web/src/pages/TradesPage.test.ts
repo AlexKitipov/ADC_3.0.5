@@ -1,9 +1,20 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { ordersAPI } from '../api/orders';
 import { tradesAPI } from '../api/trades';
-import { closeSimpleTrade, loadTrades, openSimpleTrade } from './TradesPage';
+import { closeManualOrder, closeSimpleTrade, loadTrades, openSimpleTrade, submitManualOrder } from './TradesPage';
 
 type OpenTradesResponse = Awaited<ReturnType<typeof tradesAPI.getOpen>>;
 type TradeActionResponse = Awaited<ReturnType<typeof tradesAPI.openTrade>>;
+type OrderActionResponse = Awaited<ReturnType<typeof ordersAPI.createOrder>>;
+
+vi.mock('../api/orders', () => ({
+  ordersAPI: {
+    getOpen: vi.fn(),
+    getByTicket: vi.fn(),
+    createOrder: vi.fn(),
+    closeOrder: vi.fn(),
+  },
+}));
 
 vi.mock('../api/trades', () => ({
   tradesAPI: {
@@ -26,6 +37,22 @@ const openTrade = {
   status: 'open' as const,
 };
 
+const manualOrder = {
+  ticket: 100000,
+  symbol: 'EURUSD',
+  order_type: 'BUY' as const,
+  volume: 0.1,
+  price: 1.0851,
+  stop_loss: 1.084,
+  take_profit: 1.087,
+  slippage: 100,
+  status: 'open',
+  broker_result: { status: 'open', error_code: 0, message: 'Order accepted by broker.' },
+  open_time: '2026-05-29T12:00:00',
+  close_price: null,
+  close_time: null,
+};
+
 const closedTrade = {
   ...openTrade,
   exit_price: 112,
@@ -43,10 +70,12 @@ describe('TradesPage helpers', () => {
   it('loads open and closed trades together', async () => {
     vi.mocked(tradesAPI.getOpen).mockResolvedValue({ data: [openTrade] } as OpenTradesResponse);
     vi.mocked(tradesAPI.getClosed).mockResolvedValue({ data: [closedTrade] } as OpenTradesResponse);
+    vi.mocked(ordersAPI.getOpen).mockResolvedValue({ data: [manualOrder] } as Awaited<ReturnType<typeof ordersAPI.getOpen>>);
 
-    await expect(loadTrades()).resolves.toEqual({ openTrades: [openTrade], closedTrades: [closedTrade] });
+    await expect(loadTrades()).resolves.toEqual({ openTrades: [openTrade], closedTrades: [closedTrade], openOrders: [manualOrder] });
     expect(tradesAPI.getOpen).toHaveBeenCalledWith();
     expect(tradesAPI.getClosed).toHaveBeenCalledWith();
+    expect(ordersAPI.getOpen).toHaveBeenCalledWith();
   });
 
   it('opens simple trades with normalized symbols and JSON payloads', async () => {
@@ -63,11 +92,36 @@ describe('TradesPage helpers', () => {
     expect(tradesAPI.closeTrade).toHaveBeenCalledWith(1, { exit_price: 112 });
   });
 
+  it('submits and closes manual orders with normalized payloads', async () => {
+    vi.mocked(ordersAPI.createOrder).mockResolvedValue({ data: manualOrder } as OrderActionResponse);
+    vi.mocked(ordersAPI.closeOrder).mockResolvedValue({ data: { ...manualOrder, status: 'closed' } } as OrderActionResponse);
+
+    await expect(submitManualOrder(' eurusd ', 'BUY', 0.1, 1.0851, 1.084, 1.087, 100)).resolves.toEqual(manualOrder);
+    await expect(closeManualOrder(100000, 1.085, 100)).resolves.toMatchObject({ status: 'closed' });
+
+    expect(ordersAPI.createOrder).toHaveBeenCalledWith({
+      symbol: 'EURUSD',
+      order_type: 'BUY',
+      volume: 0.1,
+      price: 1.0851,
+      stop_loss: 1.084,
+      take_profit: 1.087,
+      slippage: 100,
+      comment: 'manual-order',
+    });
+    expect(ordersAPI.closeOrder).toHaveBeenCalledWith(100000, { price: 1.085, slippage: 100, exit_reason: 'manual-close' });
+  });
+
   it('validates open and close action input before calling the API', async () => {
     await expect(openSimpleTrade('', 100)).rejects.toThrow('Symbol is required.');
     await expect(openSimpleTrade('BTCUSD', 0)).rejects.toThrow('Entry price must be greater than zero.');
     await expect(closeSimpleTrade(1, 0)).rejects.toThrow('Exit price must be greater than zero.');
     expect(tradesAPI.openTrade).not.toHaveBeenCalled();
+    await expect(submitManualOrder('', 'BUY', 0.1, 1.0851, 0, 0, 100)).rejects.toThrow('Order symbol is required.');
+    await expect(submitManualOrder('EURUSD', 'BUY', 0, 1.0851, 0, 0, 100)).rejects.toThrow('Order volume must be greater than zero.');
+    await expect(closeManualOrder(100000, 0, 100)).rejects.toThrow('Close price must be greater than zero.');
     expect(tradesAPI.closeTrade).not.toHaveBeenCalled();
+    expect(ordersAPI.createOrder).not.toHaveBeenCalled();
+    expect(ordersAPI.closeOrder).not.toHaveBeenCalled();
   });
 });
