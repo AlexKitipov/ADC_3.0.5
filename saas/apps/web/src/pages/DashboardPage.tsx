@@ -18,6 +18,7 @@ import {
   Trophy,
 } from 'lucide-react';
 import { dashboardAPI } from '../api/dashboard';
+import { LiveMarketWidget } from '../components/LiveMarketWidget';
 import { LoadingState } from '../components/LoadingState';
 import { SessionControls } from '../components/SessionControls';
 import { StatCard } from '../components/StatCard';
@@ -133,7 +134,10 @@ export function DashboardPage() {
         </div>
       )}
 
-      <SessionControls />
+      <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_24rem]">
+        <SessionControls />
+        <LiveMarketWidget symbol="EURUSD" />
+      </section>
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <StatCard

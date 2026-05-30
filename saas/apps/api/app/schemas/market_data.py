@@ -10,6 +10,23 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 MarketDataTimeframe = Literal["1d", "1min", "5min", "15min", "30min", "60min"]
 
 
+class MarketTickSchema(BaseModel):
+    """Contract for one live market stream tick."""
+
+    symbol: str = Field(..., min_length=1, max_length=32)
+    price: float
+    bid: float
+    ask: float
+    timestamp: datetime
+
+    @field_validator("symbol")
+    @classmethod
+    def normalize_tick_symbol(cls, value: str) -> str:
+        """Normalize streamed symbols for frontend consumers."""
+
+        return value.strip().upper()
+
+
 class MarketDataQuery(BaseModel):
     """Query parameters for OHLCV market data previews."""
 
