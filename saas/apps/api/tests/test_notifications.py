@@ -2,10 +2,14 @@
 
 from pathlib import Path
 from typing import Any
+from uuid import uuid4
 
 import pytest
+from fastapi.testclient import TestClient
 
+from app.api.v1.endpoints.notifications import get_notification_service
 from app.core.config import Settings
+from app.main import app
 from app.services.notifications import NotificationError, NotificationService
 
 
@@ -132,3 +136,98 @@ def test_send_email_requires_recipient() -> None:
             subject="ADC report",
             body="Missing recipient",
         )
+
+api_client = TestClient(app)
+
+
+def register_and_login() -> tuple[str, str]:
+    """Create a unique user and return its token plus email."""
+
+    suffix = uuid4().hex
+    email = f"notifications_{suffix}@example.com"
+    payload = {
+        "email": email,
+        "username": f"notifications_{suffix}",
+        "password": "correct-horse-battery-staple",
+    }
+
+    register_response = api_client.post("/api/v1/auth/register", json=payload)
+    assert register_response.status_code == 201
+
+    login_response = api_client.post(
+        "/api/v1/auth/login",
+        data={"username": payload["username"], "password": payload["password"]},
+    )
+    assert login_response.status_code == 200
+    return login_response.json()["access_token"], email
+
+
+def auth_headers(token: str) -> dict[str, str]:
+    """Return bearer token headers for authenticated notification requests."""
+
+    return {"Authorization": f"Bearer {token}"}
+
+
+def override_notification_service() -> NotificationService:
+    """Return a mocked SMTP notification service for endpoint tests."""
+
+    return NotificationService(settings=make_settings(), smtp_factory=FakeSMTP)
+
+
+def test_notification_test_endpoint_sends_to_current_user_by_default() -> None:
+    token, email = register_and_login()
+    app.dependency_overrides[get_notification_service] = override_notification_service
+
+    try:
+        response = api_client.post(
+            "/api/v1/notifications/test",
+            headers=auth_headers(token),
+            json={"subject": "SMTP smoke test", "body": "Hello from ADC"},
+        )
+    finally:
+        app.dependency_overrides.pop(get_notification_service, None)
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "sent"
+    assert body["recipients"] == [email]
+    assert body["subject"] == "SMTP smoke test"
+    assert body["attached_files"] == []
+    assert body["skipped_attachments"] == []
+    assert FakeSMTP.instances[0].sent_messages[0]["to_addrs"] == [email]
+
+
+def test_simulation_results_endpoint_reports_attachments(tmp_path: Path) -> None:
+    token, _ = register_and_login()
+    app.dependency_overrides[get_notification_service] = override_notification_service
+    performance = tmp_path / "performance.json"
+    missing = tmp_path / "missing.csv"
+    performance.write_text('{"total_trades": 4}\n')
+
+    try:
+        response = api_client.post(
+            "/api/v1/notifications/simulation-results",
+            headers=auth_headers(token),
+            json={
+                "recipients": ["ops@example.com"],
+                "simulation_result": {
+                    "symbol": "BTCUSDT",
+                    "performance_path": str(performance),
+                    "trades_path": str(missing),
+                    "total_steps": 10,
+                    "trained_lstm": False,
+                    "trained_rl": True,
+                    "performance": {"total_trades": 4},
+                },
+            },
+        )
+    finally:
+        app.dependency_overrides.pop(get_notification_service, None)
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "sent"
+    assert body["recipients"] == ["ops@example.com"]
+    assert body["subject"] == "ADC simulation results - BTCUSDT"
+    assert body["attached_files"] == [str(performance)]
+    assert body["skipped_attachments"] == [str(missing)]
