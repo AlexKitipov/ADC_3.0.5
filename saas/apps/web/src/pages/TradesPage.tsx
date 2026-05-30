@@ -1,27 +1,30 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import { ordersAPI } from '../api/orders';
+import { tradeJournalAPI } from '../api/tradeJournal';
 import { tradesAPI } from '../api/trades';
 import { LoadingState } from '../components/LoadingState';
-import type { Order, OrderType, Trade } from '../types';
+import type { Order, OrderType, Trade, TradeJournalSummary } from '../types';
 import { formatCurrency, formatDateTime, formatPercent } from '../lib/format';
 
 interface TradesData {
   openTrades: Trade[];
   closedTrades: Trade[];
   openOrders: Order[];
+  journal: TradeJournalSummary;
 }
 
 const ORDER_TYPES: OrderType[] = ['BUY', 'SELL', 'BUYSTOP', 'SELLSTOP', 'BUYLIMIT', 'SELLLIMIT'];
 
 export async function loadTrades(): Promise<TradesData> {
   try {
-    const [openResponse, closedResponse, ordersResponse] = await Promise.all([
+    const [openResponse, closedResponse, ordersResponse, journalResponse] = await Promise.all([
       tradesAPI.getOpen(),
       tradesAPI.getClosed(),
       ordersAPI.getOpen(),
+      tradeJournalAPI.getJournal(),
     ]);
-    return { openTrades: openResponse.data, closedTrades: closedResponse.data, openOrders: ordersResponse.data };
+    return { openTrades: openResponse.data, closedTrades: closedResponse.data, openOrders: ordersResponse.data, journal: journalResponse.data };
   } catch {
     throw new Error('Trades and manual orders could not be loaded.');
   }
@@ -103,6 +106,8 @@ export function TradesPage() {
   const [openTrades, setOpenTrades] = useState<Trade[]>([]);
   const [closedTrades, setClosedTrades] = useState<Trade[]>([]);
   const [openOrders, setOpenOrders] = useState<Order[]>([]);
+  const [journal, setJournal] = useState<TradeJournalSummary | null>(null);
+  const [isExportingJournal, setIsExportingJournal] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [symbol, setSymbol] = useState('');
@@ -122,10 +127,11 @@ export function TradesPage() {
   const refreshTrades = useCallback(
     () =>
       loadTrades()
-        .then(({ openTrades: nextOpenTrades, closedTrades: nextClosedTrades, openOrders: nextOpenOrders }) => {
+        .then(({ openTrades: nextOpenTrades, closedTrades: nextClosedTrades, openOrders: nextOpenOrders, journal: nextJournal }) => {
           setOpenTrades(nextOpenTrades);
           setClosedTrades(nextClosedTrades);
           setOpenOrders(nextOpenOrders);
+          setJournal(nextJournal);
         })
         .catch((error: Error) => setErrorMessage(error.message))
         .finally(() => setIsLoading(false)),
@@ -185,6 +191,16 @@ export function TradesPage() {
       })
       .catch((error: Error) => setOrderMessage(error.message))
       .finally(() => setIsSaving(false));
+  };
+
+  const handleExportJournal = () => {
+    setIsExportingJournal(true);
+    setErrorMessage(null);
+
+    tradeJournalAPI.exportJournal()
+      .then((response) => setErrorMessage(`Journal archive ready: ${response.data.filename} (${response.data.artifact_count} artifacts).`))
+      .catch(() => setErrorMessage('Trade journal export could not be prepared.'))
+      .finally(() => setIsExportingJournal(false));
   };
 
   const handleCloseManualOrder = (ticket: number) => {
@@ -252,6 +268,8 @@ export function TradesPage() {
         orders={openOrders}
       />
 
+      {journal && <JournalArchivePanel isExporting={isExportingJournal} journal={journal} onExport={handleExportJournal} />}
+
       <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
         <h3 className="text-lg font-semibold text-white">Open a simple trade record</h3>
         <form className="mt-4 grid gap-4 md:grid-cols-[1fr_1fr_auto]" onSubmit={handleOpenTrade}>
@@ -301,6 +319,86 @@ export function TradesPage() {
     </div>
   );
 }
+
+function JournalArchivePanel({
+  isExporting,
+  journal,
+  onExport,
+}: {
+  isExporting: boolean;
+  journal: TradeJournalSummary;
+  onExport: () => void;
+}) {
+  const existingArtifacts = journal.artifacts.filter((artifact) => artifact.exists);
+  const latestEntries = journal.entries.slice(0, 3);
+
+  return (
+    <section className="rounded-2xl border border-cyan-500/30 bg-cyan-500/10 p-5">
+      <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+        <div>
+          <h3 className="text-lg font-semibold text-cyan-100">Journal archive</h3>
+          <p className="mt-1 text-sm text-cyan-100/80">
+            Browse simulation CSV/JSON artifacts separately from database trades and broker orders.
+          </p>
+        </div>
+        <button
+          className="rounded-lg bg-cyan-300 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-cyan-200 disabled:cursor-not-allowed disabled:opacity-60"
+          disabled={isExporting}
+          onClick={onExport}
+          type="button"
+        >
+          {isExporting ? 'Preparing export...' : 'Prepare export'}
+        </button>
+      </div>
+      <div className="mt-4 grid gap-4 md:grid-cols-3">
+        <BoundaryCard label="Persisted Trade DB rows" value={`${journal.db_trade_count} total`} description={journal.relationships.persisted_trade_rows} />
+        <BoundaryCard label="Broker/order records" value="Order layer" description={journal.relationships.broker_order_records} />
+        <BoundaryCard label="CSV/JSON artifacts" value={`${existingArtifacts.length} files`} description={journal.relationships.journal_artifacts} />
+      </div>
+      <div className="mt-5 grid gap-5 xl:grid-cols-2">
+        <div className="rounded-xl border border-cyan-400/20 bg-slate-950/40 p-4">
+          <h4 className="font-semibold text-white">Managed artifacts</h4>
+          <ul className="mt-3 space-y-2 text-sm text-slate-300">
+            {journal.artifacts.map((artifact) => (
+              <li key={artifact.name} className="flex items-center justify-between gap-3 rounded-lg bg-slate-950/50 px-3 py-2">
+                <span className="font-medium text-slate-100">{artifact.name}</span>
+                <span className={artifact.exists ? 'text-emerald-300' : 'text-slate-500'}>
+                  {artifact.exists ? `${artifact.row_count ?? 0} rows · ${artifact.size_bytes ?? 0} bytes` : 'not found'}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+        <div className="rounded-xl border border-cyan-400/20 bg-slate-950/40 p-4">
+          <h4 className="font-semibold text-white">Latest journal entries</h4>
+          {latestEntries.length > 0 ? (
+            <ul className="mt-3 space-y-2 text-sm text-slate-300">
+              {latestEntries.map((entry) => (
+                <li key={entry.id} className="rounded-lg bg-slate-950/50 px-3 py-2">
+                  <span className="font-semibold text-slate-100">#{entry.row_number} {entry.type ?? 'trade'}</span>
+                  <span className="ml-2 text-slate-400">PnL {entry.pnl === null ? '—' : formatCurrency(entry.pnl)}</span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="mt-3 text-sm text-slate-400">No trade journal CSV rows have been imported or generated yet.</p>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function BoundaryCard({ label, value, description }: { label: string; value: string; description: string }) {
+  return (
+    <div className="rounded-xl border border-cyan-400/20 bg-slate-950/40 p-4">
+      <p className="text-xs font-semibold uppercase tracking-wider text-cyan-200/80">{label}</p>
+      <p className="mt-2 text-2xl font-bold text-white">{value}</p>
+      <p className="mt-2 text-sm leading-6 text-slate-300">{description}</p>
+    </div>
+  );
+}
+
 
 function NumberField({ disabled, label, onChange, placeholder, step, value }: { disabled: boolean; label: string; onChange: (value: string) => void; placeholder?: string; step: string; value: string }) {
   return (

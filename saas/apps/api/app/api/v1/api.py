@@ -17,6 +17,7 @@ from app.api.v1.endpoints import (
     signals,
     simulations,
     strategy,
+    trade_journal,
     trades,
 )
 
@@ -26,6 +27,7 @@ api_router.include_router(dashboard.router, prefix="/dashboard", tags=["Dashboar
 api_router.include_router(indicators.router, prefix="/indicators", tags=["Indicators"])
 api_router.include_router(signals.router, prefix="/signals", tags=["Signals"])
 api_router.include_router(trades.router, prefix="/trades", tags=["Trades"])
+api_router.include_router(trade_journal.router, prefix="/trade-journal", tags=["Trade Journal"])
 api_router.include_router(orders.router, prefix="/orders", tags=["Orders"])
 api_router.include_router(rl.router, prefix="/rl", tags=["RL Training"])
 api_router.include_router(lstm.router, prefix="/lstm", tags=["LSTM Generation"])

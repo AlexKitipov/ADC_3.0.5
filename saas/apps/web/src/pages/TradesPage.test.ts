@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ordersAPI } from '../api/orders';
+import { tradeJournalAPI } from '../api/tradeJournal';
 import { tradesAPI } from '../api/trades';
 import { closeManualOrder, closeSimpleTrade, loadTrades, openSimpleTrade, submitManualOrder } from './TradesPage';
 
@@ -22,6 +23,13 @@ vi.mock('../api/trades', () => ({
     getClosed: vi.fn(),
     openTrade: vi.fn(),
     closeTrade: vi.fn(),
+  },
+}));
+
+vi.mock('../api/tradeJournal', () => ({
+  tradeJournalAPI: {
+    getJournal: vi.fn(),
+    exportJournal: vi.fn(),
   },
 }));
 
@@ -62,6 +70,19 @@ const closedTrade = {
   status: 'closed' as const,
 };
 
+const journal = {
+  entries: [],
+  artifacts: [],
+  db_trade_count: 2,
+  open_db_trade_count: 1,
+  closed_db_trade_count: 1,
+  relationships: {
+    persisted_trade_rows: 'Persisted rows',
+    broker_order_records: 'Broker orders',
+    journal_artifacts: 'Journal artifacts',
+  },
+};
+
 describe('TradesPage helpers', () => {
   beforeEach(() => {
     vi.resetAllMocks();
@@ -71,11 +92,13 @@ describe('TradesPage helpers', () => {
     vi.mocked(tradesAPI.getOpen).mockResolvedValue({ data: [openTrade] } as OpenTradesResponse);
     vi.mocked(tradesAPI.getClosed).mockResolvedValue({ data: [closedTrade] } as OpenTradesResponse);
     vi.mocked(ordersAPI.getOpen).mockResolvedValue({ data: [manualOrder] } as Awaited<ReturnType<typeof ordersAPI.getOpen>>);
+    vi.mocked(tradeJournalAPI.getJournal).mockResolvedValue({ data: journal } as Awaited<ReturnType<typeof tradeJournalAPI.getJournal>>);
 
-    await expect(loadTrades()).resolves.toEqual({ openTrades: [openTrade], closedTrades: [closedTrade], openOrders: [manualOrder] });
+    await expect(loadTrades()).resolves.toEqual({ openTrades: [openTrade], closedTrades: [closedTrade], openOrders: [manualOrder], journal });
     expect(tradesAPI.getOpen).toHaveBeenCalledWith();
     expect(tradesAPI.getClosed).toHaveBeenCalledWith();
     expect(ordersAPI.getOpen).toHaveBeenCalledWith();
+    expect(tradeJournalAPI.getJournal).toHaveBeenCalledWith();
   });
 
   it('opens simple trades with normalized symbols and JSON payloads', async () => {

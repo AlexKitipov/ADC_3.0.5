@@ -70,6 +70,66 @@ export interface Trade {
   status: 'open' | 'closed' | (string & Record<never, never>);
 }
 
+// Trade journal artifact schemas: apps/api/app/schemas/trade_journal.py
+export type JournalArtifactType = 'trades' | 'pending_orders' | 'equity_curve' | 'drawdown' | 'rewards' | 'performance' | 'actions';
+
+export interface TradeJournalEntry {
+  id: string;
+  row_number: number;
+  source: string;
+  entry_date: string | null;
+  exit_date: string | null;
+  type: string | null;
+  entry_price: number | null;
+  exit_price: number | null;
+  size: number | null;
+  pnl: number | null;
+  exit_reason: string | null;
+  balance_after: number | null;
+  raw: Record<string, unknown>;
+}
+
+export interface TradeJournalArtifact {
+  name: string;
+  artifact_type: JournalArtifactType;
+  path: string;
+  exists: boolean;
+  size_bytes: number | null;
+  modified_at: string | null;
+  row_count: number | null;
+  content_type: string;
+}
+
+export interface TradeJournalRelationshipSummary {
+  persisted_trade_rows: string;
+  broker_order_records: string;
+  journal_artifacts: string;
+}
+
+export interface TradeJournalSummary {
+  entries: TradeJournalEntry[];
+  artifacts: TradeJournalArtifact[];
+  db_trade_count: number;
+  open_db_trade_count: number;
+  closed_db_trade_count: number;
+  relationships: TradeJournalRelationshipSummary;
+}
+
+export interface TradeJournalImportSummary {
+  artifact: TradeJournalArtifact;
+  rows_imported: number | null;
+  replaced_existing: boolean;
+  message: string;
+}
+
+export interface TradeJournalExportMetadata {
+  filename: string;
+  path: string;
+  size_bytes: number;
+  artifact_count: number;
+  created_at: string;
+  download_url: string;
+}
 
 // Order schemas: apps/api/app/schemas/orders.py
 export type OrderType = 'BUY' | 'SELL' | 'BUYSTOP' | 'SELLSTOP' | 'BUYLIMIT' | 'SELLLIMIT';
