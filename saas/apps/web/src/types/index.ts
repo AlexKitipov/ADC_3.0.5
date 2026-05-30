@@ -298,6 +298,66 @@ export interface IndicatorCalculationResponse {
 }
 
 
+// LSTM generation schemas: apps/api/app/schemas/lstm.py
+export interface LSTMTrainRequest {
+  rows: OHLCVRow[];
+  features?: string[];
+  sequence_length?: number;
+  lstm_units_1?: number;
+  lstm_units_2?: number;
+  learning_rate?: number;
+  epochs?: number;
+  batch_size?: number;
+  validation_split?: number;
+}
+
+export interface LSTMTrainingResult {
+  features: string[];
+  sequence_length: number;
+  lstm_units_1: number;
+  lstm_units_2: number;
+  learning_rate: number;
+  epochs: number;
+  batch_size: number;
+  row_count: number;
+  final_loss: number | null;
+  final_val_loss: number | null;
+  message: string;
+}
+
+export interface LSTMJob {
+  id: string;
+  status: 'running' | 'completed' | 'failed';
+  created_at: string;
+  completed_at: string | null;
+  request: Record<string, unknown>;
+  result: LSTMTrainingResult | null;
+  error: string | null;
+}
+
+export interface LSTMGenerateRequest {
+  job_id: string;
+  num_steps?: number;
+  seed_rows?: OHLCVRow[] | null;
+}
+
+export interface GeneratedCandleRow {
+  step: number;
+  open: number | null;
+  high: number | null;
+  low: number | null;
+  close: number | null;
+  volume: number | null;
+  features: Record<string, number>;
+}
+
+export interface LSTMGenerationResult {
+  job_id: string;
+  features: string[];
+  rows: GeneratedCandleRow[];
+  row_count: number;
+}
+
 // RL training schemas: apps/api/app/schemas/rl.py
 export type RLAlgorithm = 'PPO' | 'DQN' | 'A2C' | 'SAC';
 export type RLEnvironment = 'pivot-grid';
@@ -364,6 +424,12 @@ export interface SimulationRequest {
   end_date?: string | null;
   output_dir?: string;
   generated_steps?: number | null;
+  sequence_length?: number | null;
+  lstm_epochs?: number | null;
+  lstm_batch_size?: number | null;
+  lstm_learning_rate?: number | null;
+  lstm_units_1?: number | null;
+  lstm_units_2?: number | null;
   train_lstm?: boolean;
   train_rl?: boolean;
   save_charts?: boolean;
