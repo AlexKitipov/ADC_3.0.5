@@ -201,6 +201,37 @@ export interface UserSettings extends UserSettingsUpdate {
   id: number;
 }
 
+// Notification schemas: apps/api/app/schemas/notifications.py
+export interface NotificationAttachmentReference {
+  path: string;
+  filename?: string | null;
+  content_type?: string | null;
+}
+
+export interface NotificationTestRequest {
+  recipients?: string[] | null;
+  subject?: string;
+  body?: string;
+  attachments?: NotificationAttachmentReference[];
+}
+
+export interface SimulationResultsNotificationRequest {
+  recipients?: string[] | null;
+  simulation_result: Record<string, unknown>;
+  subject?: string | null;
+  body?: string | null;
+  extra_attachments?: NotificationAttachmentReference[];
+}
+
+export interface NotificationDeliveryResponse {
+  status: 'sent' | 'error';
+  recipients: string[];
+  subject: string;
+  attached_files: string[];
+  skipped_attachments: string[];
+  error: string | null;
+}
+
 // Strategy metadata schemas: apps/api/app/schemas/strategy.py
 export type StrategyParameterValue = string | number | boolean | null;
 

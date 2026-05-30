@@ -1,4 +1,5 @@
 import { FormEvent, useEffect, useState } from "react";
+import { notificationsAPI } from "../api/notifications";
 import { settingsAPI } from "../api/settings";
 import { LoadingState } from "../components/LoadingState";
 import { UserSettings, UserSettingsUpdate } from "../types";
@@ -9,6 +10,10 @@ export function SettingsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const [isTestingNotification, setIsTestingNotification] = useState(false);
+  const [notificationStatus, setNotificationStatus] = useState<string | null>(
+    null,
+  );
 
   useEffect(() => {
     settingsAPI
@@ -75,6 +80,32 @@ export function SettingsPage() {
       setError(
         "Failed to save settings. Please check your values and try again.",
       );
+    }
+  };
+
+  const handleSendTestNotification = async () => {
+    setIsTestingNotification(true);
+    setNotificationStatus(null);
+
+    try {
+      const response = await notificationsAPI.sendTest();
+      const recipients = response.data.recipients.join(", ");
+      if (response.data.status === "sent") {
+        setNotificationStatus(`Test notification sent to ${recipients}.`);
+      } else {
+        setNotificationStatus(
+          response.data.error
+            ? `Notification test failed: ${response.data.error}`
+            : "Notification test failed.",
+        );
+      }
+    } catch (testError) {
+      console.error("Failed to send test notification:", testError);
+      setNotificationStatus(
+        "Failed to send test notification. Check SMTP settings and try again.",
+      );
+    } finally {
+      setIsTestingNotification(false);
     }
   };
 
@@ -186,12 +217,28 @@ export function SettingsPage() {
           </p>
         )}
 
-        <button
-          type="submit"
-          className="w-full rounded-xl bg-brand-600 px-5 py-3 font-semibold text-white hover:bg-brand-700 md:w-auto"
-        >
-          Save Settings
-        </button>
+        {notificationStatus && (
+          <p className="rounded-lg bg-sky-500/10 px-3 py-2 text-sm text-sky-300">
+            {notificationStatus}
+          </p>
+        )}
+
+        <div className="flex flex-col gap-3 md:flex-row">
+          <button
+            type="submit"
+            className="w-full rounded-xl bg-brand-600 px-5 py-3 font-semibold text-white hover:bg-brand-700 md:w-auto"
+          >
+            Save Settings
+          </button>
+          <button
+            type="button"
+            onClick={handleSendTestNotification}
+            disabled={isTestingNotification || !settings.email_notifications}
+            className="w-full rounded-xl border border-slate-700 px-5 py-3 font-semibold text-slate-100 hover:border-brand-500 disabled:cursor-not-allowed disabled:opacity-50 md:w-auto"
+          >
+            {isTestingNotification ? "Sending test..." : "Send Test Email"}
+          </button>
+        </div>
       </form>
     </div>
   );

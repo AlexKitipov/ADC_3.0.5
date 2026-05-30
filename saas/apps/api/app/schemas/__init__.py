@@ -35,6 +35,13 @@ from app.schemas.rl import (
     RLTrainingResultSchema,
     RLTrainingStatus,
 )
+from app.schemas.notifications import (
+    NotificationAttachmentReference,
+    NotificationDeliveryResponse,
+    NotificationDeliveryStatus,
+    NotificationTestRequest,
+    SimulationResultsNotificationRequest,
+)
 from app.schemas.market_data import (
     MarketDataQuery,
     MarketTickSchema,
@@ -75,6 +82,11 @@ __all__ = [
     "MarketTickSchema",
     "MarketDataResponse",
     "MarketDataTimeframe",
+    "NotificationAttachmentReference",
+    "NotificationDeliveryResponse",
+    "NotificationDeliveryStatus",
+    "NotificationTestRequest",
+    "SimulationResultsNotificationRequest",
     "OHLCVRow",
     "BrokerResult",
     "Order",
