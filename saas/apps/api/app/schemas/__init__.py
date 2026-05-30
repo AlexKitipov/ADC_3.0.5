@@ -60,6 +60,15 @@ from app.schemas.simulations import (
 from app.schemas.signals import Signal, SignalAction, SignalCreate
 from app.schemas.strategy import StrategyParameterSpec, StrategyParameterValue
 from app.schemas.trades import Trade, TradeClose, TradeCreate
+from app.schemas.trade_journal import (
+    JournalArtifactType,
+    TradeJournalArtifact,
+    TradeJournalEntry,
+    TradeJournalExportMetadata,
+    TradeJournalImportSummary,
+    TradeJournalRelationshipSummary,
+    TradeJournalSummary,
+)
 
 __all__ = [
     "DashboardStats",
@@ -114,6 +123,13 @@ __all__ = [
     "Trade",
     "TradeClose",
     "TradeCreate",
+    "JournalArtifactType",
+    "TradeJournalArtifact",
+    "TradeJournalEntry",
+    "TradeJournalExportMetadata",
+    "TradeJournalImportSummary",
+    "TradeJournalRelationshipSummary",
+    "TradeJournalSummary",
     "User",
     "UserCreate",
     "UserSettings",
