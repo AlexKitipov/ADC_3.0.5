@@ -38,8 +38,8 @@ export function NotificationsPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h2 className="text-3xl font-bold text-white">Notifications</h2>
-        <p className="mt-2 text-slate-400">Send backend notification tests and inspect delivery metadata outside the general settings form.</p>
+        <h2 className="text-3xl font-bold text-white">Advanced/Lab Notifications</h2>
+        <p className="mt-2 text-slate-400">Advanced/Lab delivery checks for backend notification tests and metadata outside the general settings form.</p>
       </div>
 
       {error && <ErrorState message={error} />}

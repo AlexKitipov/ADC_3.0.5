@@ -73,6 +73,28 @@ FastAPI also exposes generated OpenAPI at runtime:
 - Swagger UI: `GET /docs`
 - ReDoc: `GET /redoc`
 
+
+## MVP vs Advanced/Lab endpoint families
+
+The MVP SaaS shell exposes the stable navigation surface for Dashboard,
+Signals, Trades/History, and Settings. The backend still registers the
+following Advanced/Lab endpoint families so direct URLs, experiments, and
+integration tests keep working, but they are not part of the primary MVP
+navigation contract:
+
+- `/rl`
+- `/lstm`
+- `/simulations`
+- `/sessions`
+- `/trade-journal`
+- `/notifications`
+- `/market-stream`
+
+These Advanced/Lab routes are intended for research, runtime operations,
+delivery diagnostics, generated artifacts, and streaming workflows. They must
+remain documented and routable even when the frontend hides lab links behind a
+feature flag.
+
 ## Endpoint reference
 
 All paths below are relative to `/api/v1`.

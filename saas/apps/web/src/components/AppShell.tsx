@@ -1,20 +1,32 @@
 import { Activity, BarChart3, Beaker, Bell, BookOpen, BrainCircuit, Database, LogOut, Radio, Settings, Zap } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { NavLink, Outlet } from 'react-router-dom';
+import { showLabNavigation } from '../config/features';
 import { useAuthStore } from '../store/authStore';
 import { LiveMarketWidget } from './LiveMarketWidget';
 import { SessionControls } from './SessionControls';
 
-const navItems = [
+type NavItem = {
+  to: string;
+  label: string;
+  icon: LucideIcon;
+  description: string;
+};
+
+const navItems: NavItem[] = [
   { to: '/dashboard', label: 'Dashboard', icon: BarChart3, description: 'Equity, drawdown, live status' },
   { to: '/signals', label: 'Signals', icon: Zap, description: 'Indicator-driven ideas' },
+  { to: '/trades', label: 'Trades / History', icon: Activity, description: 'Orders and trade records' },
+  { to: '/settings', label: 'Settings', icon: Settings, description: 'Risk and preferences' },
+];
+
+const labNavItems: NavItem[] = [
   { to: '/market-data', label: 'Market Data', icon: Database, description: 'OHLCV and indicators' },
-  { to: '/trades', label: 'Trades', icon: Activity, description: 'Orders and trade records' },
   { to: '/sessions', label: 'Sessions', icon: Radio, description: 'Runtime controls and events' },
   { to: '/trade-journal', label: 'Trade Journal', icon: BookOpen, description: 'Artifacts and exports' },
   { to: '/simulations', label: 'Simulations', icon: Beaker, description: 'Strategy experiments' },
   { to: '/ai-controls', label: 'RL / LSTM', icon: BrainCircuit, description: 'Standalone model jobs' },
   { to: '/notifications', label: 'Notifications', icon: Bell, description: 'Delivery tests' },
-  { to: '/settings', label: 'Settings', icon: Settings, description: 'Risk and preferences' },
 ];
 
 const footerLinks = [
@@ -22,6 +34,47 @@ const footerLinks = [
   { label: 'Status', href: '/status' },
   { label: 'Support', href: 'mailto:support@adc.trading' },
 ];
+
+function SidebarLink({ to, label, icon: Icon, description }: NavItem) {
+  return (
+    <NavLink
+      key={to}
+      to={to}
+      className={({ isActive }) =>
+        `group flex items-center gap-3 rounded-2xl border px-3 py-2.5 text-sm font-medium transition ${
+          isActive
+            ? 'border-brand-500/50 bg-brand-600 text-white shadow-lg shadow-brand-600/20'
+            : 'border-slate-800 bg-slate-900/60 text-slate-300 hover:border-slate-700 hover:bg-slate-800 hover:text-white'
+        }`
+      }
+    >
+      <span className="rounded-xl bg-slate-950/50 p-2 text-white transition group-hover:bg-slate-900">
+        <Icon size={17} />
+      </span>
+      <span>
+        <span className="block">{label}</span>
+        <span className="block text-xs font-normal text-slate-400 group-hover:text-slate-300">{description}</span>
+      </span>
+    </NavLink>
+  );
+}
+
+function MobileLink({ to, label, icon: Icon }: Pick<NavItem, 'to' | 'label' | 'icon'>) {
+  return (
+    <NavLink
+      key={to}
+      to={to}
+      className={({ isActive }) =>
+        `inline-flex shrink-0 items-center gap-2 rounded-full px-4 py-2 text-sm ${
+          isActive ? 'bg-brand-600 text-white' : 'bg-slate-900 text-slate-300'
+        }`
+      }
+    >
+      <Icon size={16} />
+      {label}
+    </NavLink>
+  );
+}
 
 export function AppShell() {
   const { user, logout } = useAuthStore();
@@ -34,32 +87,21 @@ export function AppShell() {
           <p className="text-sm font-semibold uppercase tracking-[0.3em] text-brand-500">ADC</p>
           <h1 className="mt-2 text-2xl font-bold">Autonomous Trading Console</h1>
           <p className="mt-3 text-sm leading-6 text-slate-300">
-            One workspace for sessions, market streams, signals, simulations, model training, journals, and risk controls.
+            MVP workspace for dashboard health, trading signals, trade history, and risk controls.
           </p>
         </div>
 
         <nav className="mt-6 space-y-2 overflow-y-auto pr-1" aria-label="Primary navigation">
-          {navItems.map(({ to, label, icon: Icon, description }) => (
-            <NavLink
-              key={to}
-              to={to}
-              className={({ isActive }) =>
-                `group flex items-center gap-3 rounded-2xl border px-3 py-2.5 text-sm font-medium transition ${
-                  isActive
-                    ? 'border-brand-500/50 bg-brand-600 text-white shadow-lg shadow-brand-600/20'
-                    : 'border-slate-800 bg-slate-900/60 text-slate-300 hover:border-slate-700 hover:bg-slate-800 hover:text-white'
-                }`
-              }
-            >
-              <span className="rounded-xl bg-slate-950/50 p-2 text-white transition group-hover:bg-slate-900">
-                <Icon size={17} />
-              </span>
-              <span>
-                <span className="block">{label}</span>
-                <span className="block text-xs font-normal text-slate-400 group-hover:text-slate-300">{description}</span>
-              </span>
-            </NavLink>
-          ))}
+          {navItems.map((item) => <SidebarLink key={item.to} {...item} />)}
+
+          {showLabNavigation && (
+            <div className="pt-4">
+              <p className="mb-2 px-3 text-xs font-semibold uppercase tracking-[0.25em] text-slate-500">Advanced / Lab</p>
+              <div className="space-y-2">
+                {labNavItems.map((item) => <SidebarLink key={item.to} {...item} />)}
+              </div>
+            </div>
+          )}
         </nav>
 
         <div className="mt-5 space-y-3">
@@ -87,20 +129,8 @@ export function AppShell() {
             </button>
           </div>
           <nav className="mt-4 flex gap-2 overflow-x-auto lg:hidden" aria-label="Mobile navigation">
-            {navItems.map(({ to, label, icon: Icon }) => (
-              <NavLink
-                key={to}
-                to={to}
-                className={({ isActive }) =>
-                  `inline-flex shrink-0 items-center gap-2 rounded-full px-4 py-2 text-sm ${
-                    isActive ? 'bg-brand-600 text-white' : 'bg-slate-900 text-slate-300'
-                  }`
-                }
-              >
-                <Icon size={16} />
-                {label}
-              </NavLink>
-            ))}
+            {navItems.map((item) => <MobileLink key={item.to} {...item} />)}
+            {showLabNavigation && labNavItems.map((item) => <MobileLink key={item.to} {...item} />)}
           </nav>
         </header>
         <main className="p-4 sm:p-6 lg:p-8">

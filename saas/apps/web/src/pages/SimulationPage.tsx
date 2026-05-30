@@ -277,9 +277,9 @@ export function SimulationPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h2 className="text-3xl font-bold text-white">Simulations</h2>
+        <h2 className="text-3xl font-bold text-white">Advanced/Lab Simulations</h2>
         <p className="mt-2 text-slate-400">
-          Start backend ADC pivot-grid simulations and inspect the generated reports, charts, and datasets.
+          Advanced/Lab workspace for backend ADC pivot-grid simulations, generated reports, charts, and datasets.
         </p>
       </div>
 
