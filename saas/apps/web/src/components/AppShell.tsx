@@ -1,6 +1,7 @@
-import { Activity, BarChart3, Beaker, BookOpen, LogOut, Settings, ShieldCheck, Zap } from 'lucide-react';
+import { Activity, BarChart3, Beaker, BookOpen, LogOut, Settings, Zap } from 'lucide-react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
+import { SessionControls } from './SessionControls';
 
 const navItems = [
   { to: '/dashboard', label: 'Dashboard', icon: BarChart3, description: 'Portfolio health' },
@@ -55,16 +56,8 @@ export function AppShell() {
           ))}
         </nav>
 
-        <div className="mt-auto rounded-3xl border border-emerald-400/20 bg-emerald-400/10 p-4">
-          <div className="flex items-center gap-3">
-            <span className="rounded-2xl bg-emerald-400/20 p-2 text-emerald-200">
-              <ShieldCheck size={20} />
-            </span>
-            <div>
-              <p className="text-sm font-semibold text-white">Risk guard active</p>
-              <p className="text-xs text-emerald-100/80">Position limits and alerts are monitored.</p>
-            </div>
-          </div>
+        <div className="mt-auto">
+          <SessionControls compact />
         </div>
       </aside>
 
