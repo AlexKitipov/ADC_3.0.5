@@ -1,14 +1,20 @@
-import { Activity, BarChart3, Beaker, BookOpen, LogOut, Settings, Zap } from 'lucide-react';
+import { Activity, BarChart3, Beaker, Bell, BookOpen, BrainCircuit, Database, LogOut, Radio, Settings, Zap } from 'lucide-react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
+import { LiveMarketWidget } from './LiveMarketWidget';
 import { SessionControls } from './SessionControls';
 
 const navItems = [
-  { to: '/dashboard', label: 'Dashboard', icon: BarChart3, description: 'Portfolio health' },
-  { to: '/signals', label: 'Signals', icon: Zap, description: 'Live market ideas' },
-  { to: '/trades', label: 'Trades', icon: Activity, description: 'Open and closed P&L' },
-  { to: '/simulations', label: 'Simulations', icon: Beaker, description: 'Run strategy experiments' },
-  { to: '/settings', label: 'Settings', icon: Settings, description: 'Risk controls' },
+  { to: '/dashboard', label: 'Dashboard', icon: BarChart3, description: 'Equity, drawdown, live status' },
+  { to: '/signals', label: 'Signals', icon: Zap, description: 'Indicator-driven ideas' },
+  { to: '/market-data', label: 'Market Data', icon: Database, description: 'OHLCV and indicators' },
+  { to: '/trades', label: 'Trades', icon: Activity, description: 'Orders and trade records' },
+  { to: '/sessions', label: 'Sessions', icon: Radio, description: 'Runtime controls and events' },
+  { to: '/trade-journal', label: 'Trade Journal', icon: BookOpen, description: 'Artifacts and exports' },
+  { to: '/simulations', label: 'Simulations', icon: Beaker, description: 'Strategy experiments' },
+  { to: '/ai-controls', label: 'RL / LSTM', icon: BrainCircuit, description: 'Standalone model jobs' },
+  { to: '/notifications', label: 'Notifications', icon: Bell, description: 'Delivery tests' },
+  { to: '/settings', label: 'Settings', icon: Settings, description: 'Risk and preferences' },
 ];
 
 const footerLinks = [
@@ -23,22 +29,22 @@ export function AppShell() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
-      <aside className="fixed inset-y-0 left-0 hidden w-72 border-r border-slate-800 bg-slate-950/95 p-6 shadow-2xl shadow-slate-950/50 lg:flex lg:flex-col">
+      <aside className="fixed inset-y-0 left-0 hidden w-80 border-r border-slate-800 bg-slate-950/95 p-6 shadow-2xl shadow-slate-950/50 lg:flex lg:flex-col">
         <div className="rounded-3xl border border-brand-500/20 bg-brand-500/10 p-5">
           <p className="text-sm font-semibold uppercase tracking-[0.3em] text-brand-500">ADC</p>
-          <h1 className="mt-2 text-2xl font-bold">Trading Platform</h1>
+          <h1 className="mt-2 text-2xl font-bold">Autonomous Trading Console</h1>
           <p className="mt-3 text-sm leading-6 text-slate-300">
-            AI-driven crypto and forex intelligence with real-time execution visibility.
+            One workspace for sessions, market streams, signals, simulations, model training, journals, and risk controls.
           </p>
         </div>
 
-        <nav className="mt-8 space-y-3" aria-label="Primary navigation">
+        <nav className="mt-6 space-y-2 overflow-y-auto pr-1" aria-label="Primary navigation">
           {navItems.map(({ to, label, icon: Icon, description }) => (
             <NavLink
               key={to}
               to={to}
               className={({ isActive }) =>
-                `group flex items-center gap-4 rounded-2xl border px-4 py-3 text-sm font-medium transition ${
+                `group flex items-center gap-3 rounded-2xl border px-3 py-2.5 text-sm font-medium transition ${
                   isActive
                     ? 'border-brand-500/50 bg-brand-600 text-white shadow-lg shadow-brand-600/20'
                     : 'border-slate-800 bg-slate-900/60 text-slate-300 hover:border-slate-700 hover:bg-slate-800 hover:text-white'
@@ -46,7 +52,7 @@ export function AppShell() {
               }
             >
               <span className="rounded-xl bg-slate-950/50 p-2 text-white transition group-hover:bg-slate-900">
-                <Icon size={18} />
+                <Icon size={17} />
               </span>
               <span>
                 <span className="block">{label}</span>
@@ -56,17 +62,20 @@ export function AppShell() {
           ))}
         </nav>
 
-        <div className="mt-auto">
+        <div className="mt-5 space-y-3">
           <SessionControls compact />
         </div>
       </aside>
 
-      <div className="lg:pl-72">
+      <div className="lg:pl-80">
         <header className="sticky top-0 z-10 border-b border-slate-800 bg-slate-950/80 px-4 py-4 backdrop-blur sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-4">
             <div>
-              <p className="text-sm text-slate-400">Welcome back</p>
+              <p className="text-sm text-slate-400">Live trading console</p>
               <p className="font-semibold">{user?.username ?? 'Trader'}</p>
+            </div>
+            <div className="hidden min-w-72 xl:block">
+              <LiveMarketWidget symbol="EURUSD" compact />
             </div>
             <button
               type="button"
@@ -83,7 +92,7 @@ export function AppShell() {
                 key={to}
                 to={to}
                 className={({ isActive }) =>
-                  `inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm ${
+                  `inline-flex shrink-0 items-center gap-2 rounded-full px-4 py-2 text-sm ${
                     isActive ? 'bg-brand-600 text-white' : 'bg-slate-900 text-slate-300'
                   }`
                 }

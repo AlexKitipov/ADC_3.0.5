@@ -3,10 +3,11 @@ import { useMarketStream } from '../hooks/useMarketStream';
 import { formatCurrency } from '../lib/format';
 
 interface LiveMarketWidgetProps {
+  compact?: boolean;
   symbol?: string;
 }
 
-export function LiveMarketWidget({ symbol = 'EURUSD' }: LiveMarketWidgetProps) {
+export function LiveMarketWidget({ compact = false, symbol = 'EURUSD' }: LiveMarketWidgetProps) {
   const { latestTick, ticks, status, error } = useMarketStream(symbol, {
     interval: 1,
   });
@@ -15,6 +16,23 @@ export function LiveMarketWidget({ symbol = 'EURUSD' }: LiveMarketWidgetProps) {
     ? latestTick.price - previousTick.price
     : 0;
   const isUp = priceDelta >= 0;
+
+  if (compact) {
+    return (
+      <section className="rounded-2xl border border-slate-800 bg-slate-900/70 px-4 py-3 shadow-xl shadow-slate-950/20" aria-label="Live market stream status">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <p className="text-xs uppercase tracking-[0.2em] text-cyan-300">Stream</p>
+            <p className="mt-1 font-semibold text-white">{symbol.toUpperCase()} · {latestTick ? formatCurrency(latestTick.price) : 'Waiting'}</p>
+          </div>
+          <div className="flex items-center gap-2 rounded-full border border-slate-700 px-3 py-1 text-xs text-slate-300">
+            {status === 'reconnecting' ? <WifiOff className="h-4 w-4 text-amber-300" /> : <Radio className="h-4 w-4 text-emerald-300" />}
+            {status}
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="rounded-2xl border border-slate-800 bg-slate-900/80 p-6 shadow-xl shadow-slate-950/40">

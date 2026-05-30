@@ -20,6 +20,7 @@ import {
 import { dashboardAPI } from '../api/dashboard';
 import { LiveMarketWidget } from '../components/LiveMarketWidget';
 import { LoadingState } from '../components/LoadingState';
+import { ErrorState } from '../components/PageState';
 import { SessionControls } from '../components/SessionControls';
 import { StatCard } from '../components/StatCard';
 import type { DashboardStats, DrawdownCurvePoint, EquityCurvePoint } from '../types';
@@ -97,15 +98,10 @@ export function DashboardPage() {
 
   if (error || !stats) {
     return (
-      <div className="rounded-2xl border border-rose-500/30 bg-rose-500/10 p-6 text-rose-100">
-        <div className="flex items-center gap-3">
-          <AlertTriangle className="h-6 w-6 text-rose-300" />
-          <h2 className="text-xl font-semibold">Unable to load dashboard</h2>
-        </div>
-        <p className="mt-3 text-sm text-rose-200">
-          {error ?? 'Dashboard stats were unavailable.'}
-        </p>
-      </div>
+      <ErrorState
+        title="Unable to load dashboard"
+        message={error ?? 'Dashboard stats were unavailable.'}
+      />
     );
   }
 
