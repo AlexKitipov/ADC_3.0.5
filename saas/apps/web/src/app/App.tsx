@@ -31,14 +31,11 @@ export function App() {
         <Route element={<AppShell />}>
           <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="dashboard" element={<DashboardPage />} />
-          <Route element={<FeatureGuard featureName="Signals" requireSymbols />}>
-            <Route path="signals" element={<SignalsPage />} />
-          </Route>
+          <Route path="settings" element={<SettingsPage />} />
+          <Route path="signals" element={<SignalsPage />} />
+          <Route path="trades" element={<TradesPage />} />
           <Route element={<FeatureGuard featureName="Market data" requireSymbols />}>
             <Route path="market-data" element={<MarketDataPage />} />
-          </Route>
-          <Route element={<FeatureGuard featureName="Trades" requireTradingEnabled />}>
-            <Route path="trades" element={<TradesPage />} />
           </Route>
           <Route path="sessions" element={<SessionsPage />} />
           <Route path="trade-journal" element={<TradeJournalPage />} />
@@ -49,10 +46,9 @@ export function App() {
             <Route path="ai-controls" element={<AIControlsPage />} />
           </Route>
           <Route path="notifications" element={<NotificationsPage />} />
-          <Route path="settings" element={<SettingsPage />} />
         </Route>
       </Route>
-      <Route path="*" element={<Navigate to="/" replace />} />
+      <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
   );
 }
