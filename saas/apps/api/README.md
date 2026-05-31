@@ -82,6 +82,16 @@ Run the API contract test from this directory:
 python -m pytest tests/test_api_contracts.py
 ```
 
+Run the programmable MVP smoke flow with deterministic market data:
+
+```bash
+MARKET_DATA_PROVIDER=mock python -m pytest tests/test_mvp_smoke_flow.py
+```
+
+The smoke flow uses an isolated SQLite test database and covers register, login,
+current-user auth, settings defaults/updates, persisted signal generation,
+dashboard stats, and the open/close trade lifecycle.
+
 Run the full API test suite when dependencies are installed:
 
 ```bash
