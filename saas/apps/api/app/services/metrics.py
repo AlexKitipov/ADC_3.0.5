@@ -3,9 +3,73 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 from typing import Any, Iterable, Mapping
+
+from sqlalchemy.orm import Session
+
+from app.models import EquitySnapshot, Trade
+from app.schemas import DashboardStats, DrawdownCurvePoint, EquityCurvePoint
+
+
+def calculate_dashboard_stats(db: Session, user_id: int) -> DashboardStats:
+    """Calculate dashboard metric aggregates for one user."""
+
+    trades = db.query(Trade).filter(Trade.user_id == user_id).all()
+    latest_snapshot = (
+        db.query(EquitySnapshot)
+        .filter(EquitySnapshot.user_id == user_id)
+        .order_by(EquitySnapshot.timestamp.desc())
+        .first()
+    )
+
+    closed_trades = _closed_trades(trades)
+    month_ago = datetime.utcnow() - timedelta(days=30)
+    monthly_pnl = sum(
+        _to_float(trade.pnl)
+        for trade in closed_trades
+        if trade.pnl is not None
+        and trade.exit_time is not None
+        and trade.exit_time > month_ago
+    )
+
+    return DashboardStats(
+        total_balance=latest_snapshot.balance if latest_snapshot else 0.0,
+        current_equity=latest_snapshot.equity if latest_snapshot else 0.0,
+        max_drawdown=latest_snapshot.drawdown if latest_snapshot else 0.0,
+        win_rate=win_rate(closed_trades),
+        total_trades=len(trades),
+        monthly_pnl=monthly_pnl,
+    )
+
+
+def get_equity_curve(
+    db: Session, user_id: int, days: int = 30
+) -> list[EquityCurvePoint]:
+    """Return timestamped equity and balance points for one user's period."""
+
+    snapshots = _snapshots_since(db, user_id, days)
+    return [
+        EquityCurvePoint(
+            timestamp=snapshot.timestamp,
+            equity=snapshot.equity,
+            balance=snapshot.balance,
+        )
+        for snapshot in snapshots
+    ]
+
+
+def get_drawdown_curve(
+    db: Session, user_id: int, days: int = 30
+) -> list[DrawdownCurvePoint]:
+    """Return timestamped drawdown points for one user's period."""
+
+    snapshots = _snapshots_since(db, user_id, days)
+    return [
+        DrawdownCurvePoint(timestamp=snapshot.timestamp, drawdown=snapshot.drawdown)
+        for snapshot in snapshots
+    ]
 
 
 def win_rate(trades: Iterable[Any]) -> float:
@@ -15,7 +79,9 @@ def win_rate(trades: Iterable[Any]) -> float:
     attribute. Empty inputs return ``0.0``.
     """
 
-    realized = [_to_float(_field(trade, "pnl", "profit", default=0.0)) for trade in trades]
+    realized = [
+        _to_float(_field(trade, "pnl", "profit", default=0.0)) for trade in trades
+    ]
     if not realized:
         return 0.0
     wins = sum(1 for pnl in realized if pnl > 0)
@@ -57,6 +123,23 @@ def latest_equity_snapshot(snapshots: Iterable[Any]) -> dict[str, Any] | None:
         ),
     )
     return _as_dict(latest)
+
+
+def _snapshots_since(db: Session, user_id: int, days: int) -> list[EquitySnapshot]:
+    since = datetime.utcnow() - timedelta(days=days)
+    return (
+        db.query(EquitySnapshot)
+        .filter(
+            EquitySnapshot.user_id == user_id,
+            EquitySnapshot.timestamp >= since,
+        )
+        .order_by(EquitySnapshot.timestamp)
+        .all()
+    )
+
+
+def _closed_trades(trades: Iterable[Any]) -> list[Any]:
+    return [trade for trade in trades if _field(trade, "status") == "closed"]
 
 
 def _field(item: Any, *names: str, default: Any = None) -> Any:
@@ -109,4 +192,11 @@ def _as_dict(item: Any) -> dict[str, Any]:
     return dict(vars(item))
 
 
-__all__ = ["calculate_monthly_pnl", "latest_equity_snapshot", "win_rate"]
+__all__ = [
+    "calculate_dashboard_stats",
+    "calculate_monthly_pnl",
+    "get_drawdown_curve",
+    "get_equity_curve",
+    "latest_equity_snapshot",
+    "win_rate",
+]
