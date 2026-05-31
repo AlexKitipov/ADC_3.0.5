@@ -3,15 +3,19 @@ import { signalsAPI } from '../api/signals';
 import {
   buildSignalExplanation,
   describeMacd,
+  generateSignal,
+  mergeGeneratedSignal,
   describeRsi,
   getSignalActionClass,
   loadSignals,
 } from './SignalsPage';
 
 type SignalsResponse = Awaited<ReturnType<typeof signalsAPI.getLatest>>;
+type GenerateResponse = Awaited<ReturnType<typeof signalsAPI.generate>>;
 
 vi.mock('../api/signals', () => ({
   signalsAPI: {
+    generate: vi.fn(),
     getLatest: vi.fn(),
   },
 }));
@@ -56,6 +60,23 @@ describe('SignalsPage helpers', () => {
     expect(explanation.join(' ')).toContain('stateless indicator set');
   });
 
+  it('includes generator confidence and explanation when present', () => {
+    const explanation = buildSignalExplanation({
+      id: 1,
+      symbol: 'EURUSD',
+      action: 'BUY',
+      price: 1.085,
+      rsi: 25,
+      macd: 0.15,
+      timestamp: '2026-05-29T12:00:00',
+      confidence: 0.87,
+      explanation: 'RSI recovery with bullish MACD momentum.',
+    });
+
+    expect(explanation.join(' ')).toContain('Generator confidence: 87.0%');
+    expect(explanation.join(' ')).toContain('RSI recovery');
+  });
+
   it('loads latest signals with the requested limit', async () => {
     const signals = [
       {
@@ -80,5 +101,57 @@ describe('SignalsPage helpers', () => {
     vi.mocked(signalsAPI.getLatest).mockRejectedValue(new Error('network'));
 
     await expect(loadSignals()).rejects.toThrow('Signals could not be loaded.');
+  });
+
+  it('generates a signal and merges decision context into the returned signal', async () => {
+    vi.mocked(signalsAPI.generate).mockResolvedValue({
+      data: {
+        signal: {
+          id: 2,
+          symbol: 'GBPUSD',
+          action: 'SELL',
+          price: 1.271,
+          rsi: 72,
+          macd: -0.05,
+          timestamp: '2026-05-29T12:05:00',
+        },
+        decision: {
+          symbol: 'GBPUSD',
+          action: 'SELL',
+          confidence: 0.78,
+          explanation: 'Overbought RSI and negative MACD.',
+          metadata: { timeframe: '5min' },
+        },
+      },
+    } as GenerateResponse);
+
+    await expect(generateSignal({ symbol: 'GBPUSD', timeframe: '5min' })).resolves.toMatchObject({
+      id: 2,
+      symbol: 'GBPUSD',
+      confidence: 0.78,
+      explanation: 'Overbought RSI and negative MACD.',
+    });
+    expect(signalsAPI.generate).toHaveBeenCalledWith({ symbol: 'GBPUSD', timeframe: '5min' });
+  });
+
+  it('surfaces a stable error message when signal generation fails', async () => {
+    vi.mocked(signalsAPI.generate).mockRejectedValue(new Error('network'));
+
+    await expect(generateSignal()).rejects.toThrow('Signal could not be generated.');
+  });
+
+  it('prepends generated signals without duplicating an existing id', () => {
+    const existing = {
+      id: 1,
+      symbol: 'EURUSD',
+      action: 'BUY' as const,
+      price: 1.085,
+      rsi: 44.2,
+      macd: 0.15,
+      timestamp: '2026-05-29T12:00:00',
+    };
+    const generated = { ...existing, price: 1.09, confidence: 0.66 };
+
+    expect(mergeGeneratedSignal([existing], generated)).toEqual([generated]);
   });
 });
