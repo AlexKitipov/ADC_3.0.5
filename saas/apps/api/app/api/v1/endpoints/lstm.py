@@ -3,10 +3,9 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import TYPE_CHECKING
 from uuid import uuid4
 
-import numpy as np
-import pandas as pd
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.models import User
@@ -18,7 +17,11 @@ from app.schemas import (
     LSTMTrainRequest,
 )
 from app.security import get_current_user
-from core.lstm_model import LSTMPriceGenerator
+
+if TYPE_CHECKING:
+    import numpy as np
+    import pandas as pd
+    from core.lstm_model import LSTMPriceGenerator
 
 router = APIRouter()
 
@@ -131,6 +134,8 @@ def generate_lstm_candles(
     else:
         seed_sequence = model_record["seed_sequence"]
 
+    import numpy as np
+
     generated_df = generator.generate(
         np.asarray(seed_sequence),
         num_steps=request.num_steps,
@@ -158,6 +163,9 @@ def get_lstm_job(
 def _run_training_job(
     request: LSTMTrainRequest,
 ) -> tuple[LSTMPriceGenerator, dict[str, object], np.ndarray]:
+    import numpy as np
+    from core.lstm_model import LSTMPriceGenerator
+
     data = _rows_to_dataframe(request.rows)
     _validate_features(data, request.features)
 
@@ -180,6 +188,8 @@ def _run_training_job(
 
 
 def _rows_to_dataframe(rows: list[object]) -> pd.DataFrame:
+    import pandas as pd
+
     records: list[dict[str, object]] = []
     for row in rows:
         if hasattr(row, "model_dump"):
@@ -208,6 +218,8 @@ def _validate_features(data: pd.DataFrame, features: list[str]) -> None:
 
 
 def _generated_rows(generated_df: pd.DataFrame) -> list[GeneratedCandleRow]:
+    import pandas as pd
+
     rows: list[GeneratedCandleRow] = []
     for index, row in generated_df.iterrows():
         feature_values = {

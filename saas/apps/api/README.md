@@ -8,8 +8,8 @@ Implemented responsibilities:
 - Canonical REST API endpoints under `/api/v1`
 - Health checks at `/api/v1/health`
 - SQLAlchemy engine/session setup
-- Celery application setup backed by Redis
-- Environment-driven configuration for database, Redis, JWT, and SMTP settings
+- Optional Celery application setup backed by Redis for background workers
+- Environment-driven configuration for database, optional Redis, JWT, and SMTP settings
 
 Core MVP endpoint responsibilities:
 
@@ -75,6 +75,13 @@ cd saas && cp .env.example .env
 
 The notebook and root-level legacy workflow remain archive/reference material.
 They should not be used as an alternate backend entry point for MVP work.
+
+The FastAPI app imports as a single-service MVP backend without importing the optional worker, RL, or LSTM runtimes. Run the import/health smoke check from this directory:
+
+```bash
+python -c "from app.main import app; print(app.title)"
+python -m pytest tests/test_app_startup.py
+```
 
 Run the API contract test from this directory:
 

@@ -11,7 +11,6 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from app.models import User
 from app.schemas import SimulationArtifact, SimulationRequest, SimulationRun
 from app.security import get_current_user
-from app.services.simulation_runner import SimulationRunner
 from app.services.strategy_settings import SimulationParameters
 
 router = APIRouter()
@@ -44,6 +43,8 @@ def create_simulation(
     _SIMULATION_RUNS[run_id] = run_record
 
     try:
+        from app.services.simulation_runner import SimulationRunner
+
         result = SimulationRunner().run(parameters)
     except Exception as exc:  # pragma: no cover - failures are data/env dependent.
         run_record.update(

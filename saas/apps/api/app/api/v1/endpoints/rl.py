@@ -13,7 +13,6 @@ from app.schemas import RLModelArtifact, RLTrainingJob, RLTrainingRequest
 from app.security import get_current_user
 from app.services.data_loader import DataLoader
 from app.services.rl_trainer import RLTrainingConfig
-from app.services.simulation_runner import SimulationRunner
 from app.services.strategy_settings import SimulationParameters
 
 router = APIRouter()
@@ -132,6 +131,8 @@ def _run_training_job(request: RLTrainingRequest):  # noqa: ANN201 - returns RLT
         import numpy as np
 
         np.random.seed(params.random_seed)
+
+    from app.services.simulation_runner import SimulationRunner
 
     output_dir = params.ensure_output_dir()
     runner = SimulationRunner()

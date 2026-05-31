@@ -7,7 +7,6 @@ from app.api.v1.api import api_router
 from app.core.config import settings
 from app.db import Base, engine
 import app.models  # noqa: F401 - register SQLAlchemy models before create_all
-from app.workers import celery_app
 
 
 def create_app() -> FastAPI:
@@ -35,7 +34,6 @@ def create_app() -> FastAPI:
     def health_check() -> dict[str, str]:
         return {"status": "ok"}
 
-    app.state.celery_app = celery_app
     return app
 
 
