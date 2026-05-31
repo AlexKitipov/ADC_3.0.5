@@ -18,9 +18,13 @@ from app.services.signal_engine import decision_to_signal_values, generate_signa
 router = APIRouter()
 
 
-@router.get("")
+@router.get(
+    "",
+    tags=["Readiness / Demo"],
+    summary="Readiness-only signal collection placeholder",
+)
 def list_signals() -> dict[str, list[dict[str, str]]]:
-    """Return the current trading signal collection readiness payload."""
+    """Return a readiness/demo placeholder; not an MVP product data endpoint."""
 
     return {"signals": []}
 

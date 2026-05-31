@@ -29,9 +29,13 @@ def get_or_create_user_settings(user_id: int, db: Session) -> UserSettings:
     return settings
 
 
-@router.get("")
+@router.get(
+    "",
+    tags=["Readiness / Demo"],
+    summary="Readiness-only runtime settings snapshot",
+)
 def read_settings() -> dict[str, str]:
-    """Return safe, non-secret runtime settings."""
+    """Return a readiness/demo runtime snapshot; not an MVP product data endpoint."""
 
     return {
         "app_name": app_settings.APP_NAME,

@@ -12,9 +12,13 @@ from app.services import metrics as metrics_service
 router = APIRouter()
 
 
-@router.get("/summary")
+@router.get(
+    "/summary",
+    tags=["Readiness / Demo"],
+    summary="Readiness-only dashboard wiring marker",
+)
 def dashboard_summary() -> dict[str, str]:
-    """Return readiness for dashboard wiring; not an MVP data endpoint."""
+    """Return readiness for dashboard wiring; not an MVP product data endpoint."""
 
     return {"status": "dashboard-ready"}
 
