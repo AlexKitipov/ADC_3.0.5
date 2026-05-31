@@ -66,7 +66,13 @@ from app.schemas.signals import (
     SignalGenerateResponse,
 )
 from app.schemas.strategy import StrategyParameterSpec, StrategyParameterValue
-from app.schemas.trades import Trade, TradeClose, TradeCreate
+from app.schemas.trades import (
+    Trade,
+    TradeClose,
+    TradeCloseRequest,
+    TradeCreate,
+    TradeOpenRequest,
+)
 from app.schemas.trade_journal import (
     JournalArtifactType,
     TradeJournalArtifact,
@@ -132,7 +138,9 @@ __all__ = [
     "Token",
     "Trade",
     "TradeClose",
+    "TradeCloseRequest",
     "TradeCreate",
+    "TradeOpenRequest",
     "JournalArtifactType",
     "TradeJournalArtifact",
     "TradeJournalEntry",

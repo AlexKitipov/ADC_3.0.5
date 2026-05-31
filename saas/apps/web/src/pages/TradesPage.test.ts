@@ -101,6 +101,20 @@ describe('TradesPage helpers', () => {
     expect(tradeJournalAPI.getJournal).toHaveBeenCalledWith();
   });
 
+  it('keeps trade history available when manual order history dependencies fail', async () => {
+    vi.mocked(tradesAPI.getOpen).mockResolvedValue({ data: [openTrade] } as OpenTradesResponse);
+    vi.mocked(tradesAPI.getClosed).mockResolvedValue({ data: [closedTrade] } as OpenTradesResponse);
+    vi.mocked(ordersAPI.getOpen).mockRejectedValue(new Error('orders unavailable'));
+    vi.mocked(tradeJournalAPI.getJournal).mockRejectedValue(new Error('journal unavailable'));
+
+    await expect(loadTrades()).resolves.toMatchObject({
+      openTrades: [openTrade],
+      closedTrades: [closedTrade],
+      openOrders: [],
+      journal: { entries: [], artifacts: [] },
+    });
+  });
+
   it('opens simple trades with normalized symbols and JSON payloads', async () => {
     vi.mocked(tradesAPI.openTrade).mockResolvedValue({ data: openTrade } as TradeActionResponse);
 
