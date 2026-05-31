@@ -6,14 +6,20 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class TradeCreate(BaseModel):
-    """Payload for opening a simple persisted trade record."""
+    """Payload for opening a simple persisted trade record.
+
+    Backwards-compatible schema name for the stable TradeOpenRequest contract.
+    """
 
     symbol: str = Field(min_length=1, max_length=32)
     entry_price: float = Field(gt=0)
 
 
 class TradeClose(BaseModel):
-    """Payload for closing a simple persisted trade record."""
+    """Payload for closing a simple persisted trade record.
+
+    Backwards-compatible schema name for the stable TradeCloseRequest contract.
+    """
 
     exit_price: float = Field(gt=0)
 
@@ -34,4 +40,14 @@ class Trade(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
-__all__ = ["Trade", "TradeClose", "TradeCreate"]
+TradeOpenRequest = TradeCreate
+TradeCloseRequest = TradeClose
+
+
+__all__ = [
+    "Trade",
+    "TradeClose",
+    "TradeCloseRequest",
+    "TradeCreate",
+    "TradeOpenRequest",
+]

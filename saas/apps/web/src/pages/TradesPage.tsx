@@ -16,17 +16,38 @@ interface TradesData {
 
 const ORDER_TYPES: OrderType[] = ['BUY', 'SELL', 'BUYSTOP', 'SELLSTOP', 'BUYLIMIT', 'SELLLIMIT'];
 
+const EMPTY_JOURNAL: TradeJournalSummary = {
+  entries: [],
+  artifacts: [],
+  db_trade_count: 0,
+  open_db_trade_count: 0,
+  closed_db_trade_count: 0,
+  relationships: {
+    persisted_trade_rows: 'Persisted trade history is loaded from /trades endpoints.',
+    broker_order_records: 'Manual broker orders are unavailable.',
+    journal_artifacts: 'Journal artifacts are unavailable.',
+  },
+};
+
 export async function loadTrades(): Promise<TradesData> {
   try {
-    const [openResponse, closedResponse, ordersResponse, journalResponse] = await Promise.all([
+    const [openResponse, closedResponse] = await Promise.all([
       tradesAPI.getOpen(),
       tradesAPI.getClosed(),
+    ]);
+    const [ordersResult, journalResult] = await Promise.allSettled([
       ordersAPI.getOpen(),
       tradeJournalAPI.getJournal(),
     ]);
-    return { openTrades: openResponse.data, closedTrades: closedResponse.data, openOrders: ordersResponse.data, journal: journalResponse.data };
+
+    return {
+      openTrades: openResponse.data,
+      closedTrades: closedResponse.data,
+      openOrders: ordersResult.status === 'fulfilled' ? ordersResult.value.data : [],
+      journal: journalResult.status === 'fulfilled' ? journalResult.value.data : EMPTY_JOURNAL,
+    };
   } catch {
-    throw new Error('Trades and manual orders could not be loaded.');
+    throw new Error('Trade history could not be loaded.');
   }
 }
 
