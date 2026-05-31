@@ -58,6 +58,18 @@ VITE_API_URL=http://localhost:8000/api/v1
 
 Do not use the old `NEXT_PUBLIC_API_BASE_URL` key for this Vite app.
 
+The Docker Compose stack also uses the safe provider defaults from
+`.env.example` when the variables are not set:
+
+```env
+MARKET_DATA_PROVIDER=yahoo
+BROKER_PROVIDER=mock
+AI_PROVIDER=mock
+```
+
+These defaults keep Celery and Redis available while the MVP request-path smoke
+flow avoids RL/LSTM training jobs.
+
 ## Canonical local run flow
 
 Run the backend API from the repository root with:
@@ -74,6 +86,94 @@ cd saas/apps/web && npm run dev
 
 The backend should be reachable at `http://localhost:8000/api/v1`, and the Vite
 dev server should use that same base URL via `VITE_API_URL`.
+
+## Local Docker Compose MVP flow
+
+From the SaaS directory, validate the Compose model before starting containers:
+
+```bash
+cd saas
+docker compose config
+```
+
+Start the local MVP stack with:
+
+```bash
+cd saas
+docker compose up --build
+```
+
+The Compose profile starts Postgres, Redis, FastAPI, Celery, and the Vite dev
+server. The backend container uses the production-shaped API command:
+
+```bash
+uvicorn app.main:app --host 0.0.0.0 --port 8000
+```
+
+The frontend container receives `VITE_API_URL` both as a build argument and as a
+runtime environment variable. By default it points to
+`http://localhost:8000/api/v1`.
+
+## MVP smoke commands
+
+After `docker compose up --build` is healthy, run the request-path smoke flow in
+a separate terminal:
+
+```bash
+cd saas
+./scripts/smoke-api.sh
+```
+
+The script exercises health, register, login, user settings, signal persistence,
+and dashboard read endpoints. It intentionally does not enqueue RL or LSTM
+training jobs.
+
+To run individual smoke commands manually:
+
+```bash
+API_URL=http://localhost:8000/api/v1
+RUN_ID=$(date +%s)
+USERNAME="smoke_${RUN_ID}"
+PASSWORD="correct-horse-battery-staple"
+
+curl --fail --silent --show-error "$API_URL/health"
+
+curl --fail --silent --show-error \
+  --request POST "$API_URL/auth/register" \
+  --header 'Content-Type: application/json' \
+  --data "{\"email\":\"${USERNAME}@example.com\",\"username\":\"${USERNAME}\",\"password\":\"${PASSWORD}\"}"
+
+TOKEN=$(curl --fail --silent --show-error \
+  --request POST "$API_URL/auth/login" \
+  --header 'Content-Type: application/x-www-form-urlencoded' \
+  --data-urlencode "username=${USERNAME}" \
+  --data-urlencode "password=${PASSWORD}" \
+  | python -c 'import json,sys; print(json.load(sys.stdin)["access_token"])')
+
+curl --fail --silent --show-error \
+  --header "Authorization: Bearer ${TOKEN}" \
+  "$API_URL/settings/user-settings"
+
+curl --fail --silent --show-error \
+  --request PUT "$API_URL/settings/user-settings" \
+  --header "Authorization: Bearer ${TOKEN}" \
+  --header 'Content-Type: application/json' \
+  --data '{"symbols":["EURUSD","BTCUSD"],"timeframe":"1h","balance":10000,"risk_per_trade":0.01,"grid_levels":5,"grid_step_pct":0.0025,"martingale_factor":1.05,"enable_trading":false,"email_notifications":false}'
+
+curl --fail --silent --show-error \
+  --request POST "$API_URL/signals/create" \
+  --header "Authorization: Bearer ${TOKEN}" \
+  --header 'Content-Type: application/json' \
+  --data '{"symbol":"EURUSD","action":"BUY","price":1.085,"rsi":44.2,"macd":0.15}'
+
+curl --fail --silent --show-error \
+  --header "Authorization: Bearer ${TOKEN}" \
+  "$API_URL/signals/latest"
+
+curl --fail --silent --show-error \
+  --header "Authorization: Bearer ${TOKEN}" \
+  "$API_URL/dashboard/stats"
+```
 
 ## Validation
 
