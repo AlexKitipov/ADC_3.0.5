@@ -53,6 +53,21 @@ docs in the same change whenever adding, renaming, or removing endpoints.
 
 ## Local development
 
+Install the API package dependencies before running backend modules directly. From
+the repository root, use the same Python interpreter that will run the app:
+
+```bash
+cd saas/apps/api
+python -m pip install --upgrade pip
+python -m pip install -e .[dev]
+```
+
+On Windows, replace `python` with the full interpreter path if needed, for example
+`C:/Users/Alex Kitipov/AppData/Local/Programs/Python/Python311/python.exe -m pip install -e .[dev]`.
+This installs Gymnasium and the other dependencies declared in `pyproject.toml`,
+which prevents `ModuleNotFoundError: No module named 'gymnasium'` when importing
+`app.services.pivot_env`.
+
 The canonical MVP backend entry point is the FastAPI app in this directory. From
 the repository root, start it with:
 
