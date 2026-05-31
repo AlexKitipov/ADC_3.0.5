@@ -1,9 +1,11 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { signalsAPI } from '../api/signals';
 import { LoadingState } from '../components/LoadingState';
 import { EmptyState, ErrorState } from '../components/PageState';
-import type { KnownSignalAction, Signal } from '../types';
+import type { KnownSignalAction, Signal, SignalGenerateRequest } from '../types';
 import { formatCurrency, formatDateTime } from '../lib/format';
+
+const SIGNALS_LIMIT = 25;
 
 const actionClasses: Record<KnownSignalAction, string> = {
   BUY: 'bg-emerald-500/10 text-emerald-300',
@@ -40,15 +42,28 @@ export function describeMacd(macd: number) {
 }
 
 export function buildSignalExplanation(signal: Signal) {
-  return [
+  const explanation = [
     `${signal.action} signal for ${signal.symbol} at ${formatCurrency(signal.price)}.`,
     describeRsi(signal.rsi),
     describeMacd(signal.macd),
-    'These values are stored on the signal; the indicators API can recalculate a full stateless indicator set from submitted OHLCV rows for previews and diagnostics.',
   ];
+
+  if (signal.confidence !== undefined) {
+    explanation.push(`Generator confidence: ${(signal.confidence * 100).toFixed(1)}%.`);
+  }
+
+  if (signal.explanation) {
+    explanation.push(`Generator note: ${signal.explanation}`);
+  }
+
+  explanation.push(
+    'These values are stored on the signal; the indicators API can recalculate a full stateless indicator set from submitted OHLCV rows for previews and diagnostics.',
+  );
+
+  return explanation;
 }
 
-export async function loadSignals(limit = 25) {
+export async function loadSignals(limit = SIGNALS_LIMIT) {
   try {
     const response = await signalsAPI.getLatest(limit);
     return response.data;
@@ -57,30 +72,91 @@ export async function loadSignals(limit = 25) {
   }
 }
 
+export async function generateSignal(payload?: SignalGenerateRequest) {
+  try {
+    const response = await signalsAPI.generate(payload);
+    const { signal, decision } = response.data;
+    return {
+      ...signal,
+      confidence: decision.confidence,
+      explanation: decision.explanation,
+    };
+  } catch {
+    throw new Error('Signal could not be generated.');
+  }
+}
+
+export function mergeGeneratedSignal(signals: Signal[], generatedSignal: Signal) {
+  return [
+    generatedSignal,
+    ...signals.filter((signal) => signal.id !== generatedSignal.id),
+  ];
+}
+
 export function SignalsPage() {
   const [signals, setSignals] = useState<Signal[]>([]);
   const [selectedSignalId, setSelectedSignalId] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const refreshSignals = useCallback(async () => {
+    setIsRefreshing(true);
+    try {
+      const loadedSignals = await loadSignals();
+      setSignals(loadedSignals);
+      setSelectedSignalId((currentSelectedId) => {
+        if (loadedSignals.some((signal) => signal.id === currentSelectedId)) {
+          return currentSelectedId;
+        }
+        return loadedSignals[0]?.id ?? null;
+      });
+      setError(null);
+      return loadedSignals;
+    } catch (loadError) {
+      setError(
+        loadError instanceof Error
+          ? loadError.message
+          : 'Signals could not be loaded.',
+      );
+      throw loadError;
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, []);
+
   useEffect(() => {
-    loadSignals()
-      .then((loadedSignals) => {
-        setSignals(loadedSignals);
-        setSelectedSignalId(loadedSignals[0]?.id ?? null);
-        setError(null);
-      })
-      .catch((loadError) => {
+    refreshSignals()
+      .catch(() => {
         setSignals([]);
         setSelectedSignalId(null);
-        setError(
-          loadError instanceof Error
-            ? loadError.message
-            : 'Signals could not be loaded.',
-        );
       })
       .finally(() => setIsLoading(false));
-  }, []);
+  }, [refreshSignals]);
+
+  const handleRefresh = async () => {
+    await refreshSignals().catch(() => undefined);
+  };
+
+  const handleGenerate = async () => {
+    setIsGenerating(true);
+    setError(null);
+    try {
+      const generatedSignal = await generateSignal();
+      setSignals((currentSignals) => mergeGeneratedSignal(currentSignals, generatedSignal));
+      setSelectedSignalId(generatedSignal.id);
+      await refreshSignals().catch(() => undefined);
+    } catch (generateError) {
+      setError(
+        generateError instanceof Error
+          ? generateError.message
+          : 'Signal could not be generated.',
+      );
+    } finally {
+      setIsGenerating(false);
+    }
+  };
 
   const selectedSignal = useMemo(
     () => signals.find((signal) => signal.id === selectedSignalId) ?? null,
@@ -91,11 +167,33 @@ export function SignalsPage() {
     return <LoadingState label="Loading signals..." />;
   }
 
+  const isBusy = isRefreshing || isGenerating;
+
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-3xl font-bold text-white">Signals</h2>
-        <p className="mt-2 text-slate-400">Recent indicator-driven trading signals with explainable RSI and MACD context.</p>
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <h2 className="text-3xl font-bold text-white">Signals</h2>
+          <p className="mt-2 text-slate-400">Recent indicator-driven trading signals with explainable RSI and MACD context.</p>
+        </div>
+        <div className="flex flex-wrap gap-3">
+          <button
+            type="button"
+            className="rounded-xl border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+            onClick={handleRefresh}
+            disabled={isBusy}
+          >
+            {isRefreshing ? 'Refreshing...' : 'Refresh'}
+          </button>
+          <button
+            type="button"
+            className="rounded-xl bg-cyan-500 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-60"
+            onClick={handleGenerate}
+            disabled={isBusy}
+          >
+            {isGenerating ? 'Generating...' : 'Generate signal'}
+          </button>
+        </div>
       </div>
       {error && <ErrorState title="Signals unavailable" message={error} />}
       <div className="grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]">

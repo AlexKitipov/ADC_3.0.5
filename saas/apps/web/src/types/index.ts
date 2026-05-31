@@ -38,6 +38,20 @@ export interface SignalCreate {
   macd: number;
 }
 
+export interface SignalGenerateRequest {
+  symbol?: string;
+  timeframe?: string;
+  strategy_settings?: Record<string, unknown>;
+}
+
+export interface SignalDecisionResponse {
+  symbol: string;
+  action: SignalAction;
+  confidence: number;
+  explanation: string;
+  metadata: Record<string, unknown>;
+}
+
 export interface Signal {
   id: number;
   symbol: string;
@@ -46,6 +60,13 @@ export interface Signal {
   rsi: number;
   macd: number;
   timestamp: string;
+  confidence?: number;
+  explanation?: string;
+}
+
+export interface SignalGenerateResponse {
+  signal: Signal;
+  decision: SignalDecisionResponse;
 }
 
 // Trade schemas: apps/api/app/schemas/trades.py
