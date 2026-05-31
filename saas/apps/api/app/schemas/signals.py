@@ -64,10 +64,20 @@ class Signal(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class SignalGenerateResponse(BaseModel):
+    """Response for persisted signal generation requests."""
+
+    signal: Signal
+    decision: SignalDecisionResponse
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 __all__ = [
     "Signal",
     "SignalAction",
     "SignalCreate",
     "SignalDecisionResponse",
     "SignalGenerateRequest",
+    "SignalGenerateResponse",
 ]

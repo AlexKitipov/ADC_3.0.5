@@ -1,12 +1,19 @@
 """Trading signal API endpoints."""
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Body, Depends
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.models import Signal, User
-from app.schemas import Signal as SignalSchema, SignalCreate
+from app.models import Signal, User, UserSettings, default_user_settings_values
+from app.schemas import (
+    Signal as SignalSchema,
+    SignalCreate,
+    SignalGenerateRequest,
+    SignalGenerateResponse,
+)
 from app.security import get_current_user
+from app.services.data_loader import get_market_data_provider
+from app.services.signal_engine import decision_to_signal_values, generate_signal
 
 router = APIRouter()
 
@@ -16,6 +23,35 @@ def list_signals() -> dict[str, list[dict[str, str]]]:
     """Return the current trading signal collection readiness payload."""
 
     return {"signals": []}
+
+
+@router.post("/generate", response_model=SignalGenerateResponse)
+def generate_signal_for_current_user(
+    request: SignalGenerateRequest = Body(default_factory=SignalGenerateRequest),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict[str, object]:
+    """Generate, persist, and return a signal for the authenticated user."""
+
+    user_settings = _get_or_create_user_settings(current_user.id, db)
+    symbol = _resolve_symbol(request.symbol, user_settings)
+    timeframe = request.timeframe or user_settings.timeframe
+    strategy_settings = dict(request.strategy_settings)
+
+    decision = generate_signal(
+        symbol=symbol,
+        timeframe=timeframe,
+        strategy_settings=strategy_settings,
+        data_provider=get_market_data_provider(),
+    )
+    signal_values = decision_to_signal_values(decision)
+    db_signal = Signal(user_id=current_user.id, **signal_values)
+
+    db.add(db_signal)
+    db.commit()
+    db.refresh(db_signal)
+
+    return {"signal": db_signal, "decision": decision.model_dump()}
 
 
 @router.post("/create", response_model=SignalSchema)
@@ -75,3 +111,29 @@ def get_signals_by_symbol(
         .all()
     )
     return signals
+
+
+def _get_or_create_user_settings(user_id: int, db: Session) -> UserSettings:
+    """Return settings for signal generation, creating defaults if needed."""
+
+    user_settings = (
+        db.query(UserSettings).filter(UserSettings.user_id == user_id).first()
+    )
+    if user_settings is None:
+        user_settings = UserSettings(user_id=user_id, **default_user_settings_values())
+        db.add(user_settings)
+        db.commit()
+        db.refresh(user_settings)
+    return user_settings
+
+
+def _resolve_symbol(request_symbol: str | None, user_settings: UserSettings) -> str:
+    """Resolve request symbol override or first configured settings symbol."""
+
+    if request_symbol:
+        return request_symbol.upper()
+
+    symbols = user_settings.symbols or default_user_settings_values()["symbols"]
+    if not symbols:
+        symbols = default_user_settings_values()["symbols"]
+    return str(symbols[0]).upper()
