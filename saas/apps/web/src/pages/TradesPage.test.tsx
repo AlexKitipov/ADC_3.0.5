@@ -1,6 +1,8 @@
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { tradesAPI } from '../api/trades';
-import { closeSimpleTrade, loadTrades, openSimpleTrade } from './TradesPage';
+import { TradesContent, closeSimpleTrade, loadTrades, openSimpleTrade } from './TradesPage';
 
 type OpenTradesResponse = Awaited<ReturnType<typeof tradesAPI.getOpen>>;
 type TradeActionResponse = Awaited<ReturnType<typeof tradesAPI.openTrade>>;
@@ -76,5 +78,87 @@ describe('TradesPage helpers', () => {
     await expect(closeSimpleTrade(1, 0)).rejects.toThrow('Exit price must be greater than zero.');
     expect(tradesAPI.openTrade).not.toHaveBeenCalled();
     expect(tradesAPI.closeTrade).not.toHaveBeenCalled();
+  });
+});
+
+
+describe('TradesContent UI smoke', () => {
+  const noop = () => undefined;
+
+  it('renders empty open-trade lifecycle guidance', () => {
+    const html = renderToStaticMarkup(
+      createElement(TradesContent, {
+        activeTab: 'open',
+        closedTrades: [],
+        entryPrice: '',
+        errorMessage: null,
+        exitPrices: {},
+        isSaving: false,
+        onActiveTabChange: noop,
+        onCloseTrade: noop,
+        onEntryPriceChange: noop,
+        onExitPriceChange: noop,
+        onOpenTrade: noop,
+        onRefreshTrades: noop,
+        onSymbolChange: noop,
+        openTrades: [],
+        successMessage: null,
+        symbol: '',
+      }),
+    );
+
+    expect(html).toContain('Open a mock trade');
+    expect(html).toContain('No open trades. Open a mock trade to start the lifecycle.');
+    expect(html).toContain('Open (0)');
+    expect(html).toContain('Closed (0)');
+  });
+
+  it('renders open and closed trade lifecycle states from mocked API data', () => {
+    const openHtml = renderToStaticMarkup(
+      createElement(TradesContent, {
+        activeTab: 'open',
+        closedTrades: [closedTrade],
+        entryPrice: '',
+        errorMessage: null,
+        exitPrices: { [openTrade.id]: '112' },
+        isSaving: false,
+        onActiveTabChange: noop,
+        onCloseTrade: noop,
+        onEntryPriceChange: noop,
+        onExitPriceChange: noop,
+        onOpenTrade: noop,
+        onRefreshTrades: noop,
+        onSymbolChange: noop,
+        openTrades: [openTrade],
+        successMessage: 'BTCUSD trade opened at $100.00.',
+        symbol: '',
+      }),
+    );
+
+    const closedHtml = renderToStaticMarkup(
+      createElement(TradesContent, {
+        activeTab: 'closed',
+        closedTrades: [closedTrade],
+        entryPrice: '',
+        errorMessage: null,
+        exitPrices: {},
+        isSaving: false,
+        onActiveTabChange: noop,
+        onCloseTrade: noop,
+        onEntryPriceChange: noop,
+        onExitPriceChange: noop,
+        onOpenTrade: noop,
+        onRefreshTrades: noop,
+        onSymbolChange: noop,
+        openTrades: [],
+        successMessage: 'BTCUSD trade closed with $12.00 (12.00%).',
+        symbol: '',
+      }),
+    );
+
+    expect(openHtml).toContain('Close trade');
+    expect(openHtml).toContain('BTCUSD trade opened');
+    expect(closedHtml).toContain('BTCUSD trade closed');
+    expect(closedHtml).toContain('$12.00 (12.00%)');
   });
 });

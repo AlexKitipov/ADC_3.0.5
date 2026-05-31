@@ -1,6 +1,9 @@
+import { createElement, isValidElement, type ReactElement, type ReactNode } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { signalsAPI } from '../api/signals';
 import {
+  SignalsContent,
   buildSignalExplanation,
   describeMacd,
   generateSignal,
@@ -20,6 +23,31 @@ vi.mock('../api/signals', () => ({
   },
 }));
 
+
+
+type ElementProps = Record<string, unknown> & { children?: ReactNode };
+
+function findButtonByText(node: ReactNode, text: string): ReactElement<ElementProps> | null {
+  if (!isValidElement(node)) {
+    return null;
+  }
+
+  const props = node.props as ElementProps;
+  if (node.type === 'button' && props.children === text) {
+    return node as ReactElement<ElementProps>;
+  }
+
+  const children = props.children;
+  const childNodes = Array.isArray(children) ? children : [children];
+  for (const child of childNodes) {
+    const match = findButtonByText(child, text);
+    if (match) {
+      return match;
+    }
+  }
+
+  return null;
+}
 describe('SignalsPage helpers', () => {
   beforeEach(() => {
     vi.resetAllMocks();
@@ -153,5 +181,45 @@ describe('SignalsPage helpers', () => {
     const generated = { ...existing, price: 1.09, confidence: 0.66 };
 
     expect(mergeGeneratedSignal([existing], generated)).toEqual([generated]);
+  });
+});
+
+
+describe('SignalsContent UI smoke', () => {
+  it('wires the generate signal button and renders generated decision context', () => {
+    const onGenerate = vi.fn();
+    const generatedSignal = {
+      id: 2,
+      symbol: 'GBPUSD',
+      action: 'SELL' as const,
+      price: 1.271,
+      rsi: 72,
+      macd: -0.05,
+      timestamp: '2026-05-29T12:05:00',
+      confidence: 0.78,
+      explanation: 'Overbought RSI and negative MACD.',
+    };
+    const element = createElement(SignalsContent, {
+      error: null,
+      isBusy: false,
+      isGenerating: false,
+      isRefreshing: false,
+      onGenerate,
+      onRefresh: vi.fn(),
+      onSelectSignal: vi.fn(),
+      selectedSignal: generatedSignal,
+      signals: [generatedSignal],
+    });
+
+    const generateButton = findButtonByText(element, 'Generate signal');
+    expect(generateButton?.props.disabled).toBe(false);
+    (generateButton?.props.onClick as () => void)();
+
+    const html = renderToStaticMarkup(element);
+    expect(onGenerate).toHaveBeenCalledOnce();
+    expect(html).toContain('Generate signal');
+    expect(html).toContain('GBPUSD');
+    expect(html).toContain('Generator confidence: 78.0%');
+    expect(html).toContain('Overbought RSI and negative MACD.');
   });
 });
