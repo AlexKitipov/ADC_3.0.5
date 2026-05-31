@@ -10,10 +10,43 @@ transaction-cost reward effects.
 from __future__ import annotations
 
 import uuid
+from importlib.util import find_spec
+from typing import Any
 
 import numpy as np
-from gymnasium import Env
-from gymnasium.spaces import Box, Discrete
+
+if find_spec("gymnasium") is not None:
+    from gymnasium import Env
+    from gymnasium.spaces import Box, Discrete
+else:
+    class Env:
+        """Minimal Gymnasium-compatible base used when Gymnasium is not installed."""
+
+        metadata: dict[str, Any] = {}
+
+        def reset(self, seed: int | None = None, options: dict[str, Any] | None = None) -> None:
+            return None
+
+    class Box:
+        """Small subset of ``gymnasium.spaces.Box`` used by smoke simulations."""
+
+        def __init__(self, low: Any, high: Any, shape: tuple[int, ...], dtype: Any) -> None:
+            self.low = low
+            self.high = high
+            self.shape = shape
+            self.dtype = dtype
+
+        def sample(self) -> np.ndarray:
+            return np.zeros(self.shape, dtype=self.dtype)
+
+    class Discrete:
+        """Small subset of ``gymnasium.spaces.Discrete`` used by smoke simulations."""
+
+        def __init__(self, n: int) -> None:
+            self.n = n
+
+        def sample(self) -> int:
+            return 0
 
 
 class PivotEnv(Env):
