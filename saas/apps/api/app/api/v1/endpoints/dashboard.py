@@ -1,21 +1,20 @@
 """Dashboard API endpoints."""
 
-from datetime import datetime, timedelta
-
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.models import EquitySnapshot, Trade, User
+from app.models import User
 from app.schemas import DashboardStats, DrawdownCurvePoint, EquityCurvePoint
 from app.security import get_current_user
+from app.services import metrics as metrics_service
 
 router = APIRouter()
 
 
 @router.get("/summary")
 def dashboard_summary() -> dict[str, str]:
-    """Return dashboard service readiness."""
+    """Return readiness for dashboard wiring; not an MVP data endpoint."""
 
     return {"status": "dashboard-ready"}
 
@@ -26,37 +25,7 @@ def get_dashboard_stats(
 ) -> DashboardStats:
     """Return aggregate dashboard metrics for the current user."""
 
-    trades = db.query(Trade).filter(Trade.user_id == current_user.id).all()
-    latest_snapshot = (
-        db.query(EquitySnapshot)
-        .filter(EquitySnapshot.user_id == current_user.id)
-        .order_by(EquitySnapshot.timestamp.desc())
-        .first()
-    )
-
-    closed_trades = [trade for trade in trades if trade.status == "closed"]
-    winning_trades = [
-        trade for trade in closed_trades if trade.pnl is not None and trade.pnl > 0
-    ]
-    win_rate = len(winning_trades) / len(closed_trades) if closed_trades else 0
-
-    month_ago = datetime.utcnow() - timedelta(days=30)
-    monthly_pnl = sum(
-        trade.pnl
-        for trade in closed_trades
-        if trade.pnl is not None
-        and trade.exit_time is not None
-        and trade.exit_time > month_ago
-    )
-
-    return DashboardStats(
-        total_balance=latest_snapshot.balance if latest_snapshot else 0,
-        current_equity=latest_snapshot.equity if latest_snapshot else 0,
-        max_drawdown=latest_snapshot.drawdown if latest_snapshot else 0,
-        win_rate=win_rate,
-        total_trades=len(trades),
-        monthly_pnl=monthly_pnl,
-    )
+    return metrics_service.calculate_dashboard_stats(db, current_user.id)
 
 
 @router.get("/equity-curve", response_model=list[EquityCurvePoint])
@@ -67,25 +36,7 @@ def get_equity_curve(
 ) -> list[EquityCurvePoint]:
     """Return the user's equity and balance history for the requested period."""
 
-    since = datetime.utcnow() - timedelta(days=days)
-    snapshots = (
-        db.query(EquitySnapshot)
-        .filter(
-            EquitySnapshot.user_id == current_user.id,
-            EquitySnapshot.timestamp >= since,
-        )
-        .order_by(EquitySnapshot.timestamp)
-        .all()
-    )
-
-    return [
-        EquityCurvePoint(
-            timestamp=snapshot.timestamp,
-            equity=snapshot.equity,
-            balance=snapshot.balance,
-        )
-        for snapshot in snapshots
-    ]
+    return metrics_service.get_equity_curve(db, current_user.id, days)
 
 
 @router.get("/drawdown-curve", response_model=list[DrawdownCurvePoint])
@@ -96,18 +47,4 @@ def get_drawdown_curve(
 ) -> list[DrawdownCurvePoint]:
     """Return the user's drawdown history for the requested period."""
 
-    since = datetime.utcnow() - timedelta(days=days)
-    snapshots = (
-        db.query(EquitySnapshot)
-        .filter(
-            EquitySnapshot.user_id == current_user.id,
-            EquitySnapshot.timestamp >= since,
-        )
-        .order_by(EquitySnapshot.timestamp)
-        .all()
-    )
-
-    return [
-        DrawdownCurvePoint(timestamp=snapshot.timestamp, drawdown=snapshot.drawdown)
-        for snapshot in snapshots
-    ]
+    return metrics_service.get_drawdown_curve(db, current_user.id, days)
