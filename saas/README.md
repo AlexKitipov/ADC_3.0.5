@@ -67,8 +67,9 @@ BROKER_PROVIDER=mock
 AI_PROVIDER=mock
 ```
 
-These defaults keep Celery and Redis available while the MVP request-path smoke
-flow avoids RL/LSTM training jobs.
+These defaults keep the MVP request path on lightweight providers. Celery, Redis,
+RL training, and LSTM training are optional lab/background capabilities and are
+not required for FastAPI startup or the smoke flow.
 
 ## Canonical local run flow
 
@@ -103,8 +104,17 @@ cd saas
 docker compose up --build
 ```
 
-The Compose profile starts Postgres, Redis, FastAPI, Celery, and the Vite dev
-server. The backend container uses the production-shaped API command:
+The default Compose stack starts Postgres, FastAPI, and the Vite dev server.
+Redis and the Celery worker are optional for the MVP deploy path and are only
+started with the `worker` profile:
+
+```bash
+cd saas
+docker compose --profile worker up --build celery
+```
+
+The backend container has no hard dependency on Redis or the worker. It uses the
+production-shaped API command:
 
 ```bash
 uvicorn app.main:app --host 0.0.0.0 --port 8000
