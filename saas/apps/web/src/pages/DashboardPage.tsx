@@ -150,6 +150,22 @@ export function DashboardPage() {
     );
   }
 
+  return (
+    <DashboardContent
+      drawdown={drawdown}
+      equity={equity}
+      stats={stats}
+      warnings={warnings}
+    />
+  );
+}
+
+export function DashboardContent({
+  stats,
+  equity,
+  drawdown,
+  warnings,
+}: DashboardLoadResult) {
   const showSignalCta = shouldShowSignalCta(stats);
 
   return (

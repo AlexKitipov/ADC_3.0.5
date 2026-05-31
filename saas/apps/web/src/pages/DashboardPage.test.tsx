@@ -1,6 +1,10 @@
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { dashboardAPI } from '../api/dashboard';
 import {
+  DashboardContent,
   loadDashboardData,
   normalizeDashboardStats,
   shouldShowSignalCta,
@@ -165,5 +169,35 @@ describe('loadDashboardData', () => {
     await expect(loadDashboardData()).rejects.toThrow(
       'Dashboard stats were unavailable.',
     );
+  });
+});
+
+
+describe('DashboardContent UI smoke', () => {
+  it('renders onboarding and empty chart states for a new account dashboard', () => {
+    const html = renderToStaticMarkup(
+      createElement(
+        MemoryRouter,
+        null,
+        createElement(DashboardContent, {
+          stats: {
+            total_balance: 0,
+            current_equity: 0,
+            max_drawdown: 0,
+            win_rate: 0,
+            total_trades: 0,
+            monthly_pnl: 0,
+          },
+          equity: [],
+          drawdown: [],
+          warnings: [],
+        }),
+      ),
+    );
+
+    expect(html).toContain('Build your first dashboard curve');
+    expect(html).toContain('Generate signal');
+    expect(html).toContain('No equity snapshots yet');
+    expect(html).toContain('No drawdown snapshots yet');
   });
 });

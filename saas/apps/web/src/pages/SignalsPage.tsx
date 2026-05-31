@@ -93,6 +93,19 @@ export function mergeGeneratedSignal(signals: Signal[], generatedSignal: Signal)
   ];
 }
 
+
+interface SignalsContentProps {
+  signals: Signal[];
+  selectedSignal: Signal | null;
+  isBusy: boolean;
+  isGenerating: boolean;
+  isRefreshing: boolean;
+  error: string | null;
+  onGenerate: () => void;
+  onRefresh: () => void;
+  onSelectSignal: (signalId: number) => void;
+}
+
 export function SignalsPage() {
   const [signals, setSignals] = useState<Signal[]>([]);
   const [selectedSignalId, setSelectedSignalId] = useState<number | null>(null);
@@ -170,6 +183,32 @@ export function SignalsPage() {
   const isBusy = isRefreshing || isGenerating;
 
   return (
+    <SignalsContent
+      error={error}
+      isBusy={isBusy}
+      isGenerating={isGenerating}
+      isRefreshing={isRefreshing}
+      onGenerate={handleGenerate}
+      onRefresh={handleRefresh}
+      onSelectSignal={setSelectedSignalId}
+      selectedSignal={selectedSignal}
+      signals={signals}
+    />
+  );
+}
+
+export function SignalsContent({
+  signals,
+  selectedSignal,
+  isBusy,
+  isGenerating,
+  isRefreshing,
+  error,
+  onGenerate,
+  onRefresh,
+  onSelectSignal,
+}: SignalsContentProps) {
+  return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
@@ -180,7 +219,7 @@ export function SignalsPage() {
           <button
             type="button"
             className="rounded-xl border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
-            onClick={handleRefresh}
+            onClick={onRefresh}
             disabled={isBusy}
           >
             {isRefreshing ? 'Refreshing...' : 'Refresh'}
@@ -188,7 +227,7 @@ export function SignalsPage() {
           <button
             type="button"
             className="rounded-xl bg-cyan-500 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-60"
-            onClick={handleGenerate}
+            onClick={onGenerate}
             disabled={isBusy}
           >
             {isGenerating ? 'Generating...' : 'Generate signal'}
@@ -210,7 +249,7 @@ export function SignalsPage() {
             </thead>
             <tbody className="divide-y divide-slate-800">
               {signals.map((signal) => {
-                const isSelected = signal.id === selectedSignalId;
+                const isSelected = signal.id === selectedSignal?.id;
                 return (
                   <tr key={signal.id} className={isSelected ? 'bg-slate-800/70' : 'hover:bg-slate-800/50'}>
                     <td className="px-5 py-4 font-semibold text-white">{signal.symbol}</td>
@@ -225,7 +264,7 @@ export function SignalsPage() {
                       <button
                         type="button"
                         className="rounded-lg border border-cyan-500/40 px-3 py-1 text-xs font-semibold text-cyan-200 transition hover:bg-cyan-500/10"
-                        onClick={() => setSelectedSignalId(signal.id)}
+                        onClick={() => onSelectSignal(signal.id)}
                       >
                         Explain
                       </button>

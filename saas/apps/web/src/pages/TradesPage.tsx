@@ -122,6 +122,65 @@ export function TradesPage() {
   }
 
   return (
+    <TradesContent
+      activeTab={activeTab}
+      closedTrades={closedTrades}
+      entryPrice={entryPrice}
+      errorMessage={errorMessage}
+      exitPrices={exitPrices}
+      isSaving={isSaving}
+      onActiveTabChange={setActiveTab}
+      onCloseTrade={handleCloseTrade}
+      onEntryPriceChange={setEntryPrice}
+      onExitPriceChange={(tradeId, exitPrice) => setExitPrices((currentExitPrices) => ({ ...currentExitPrices, [tradeId]: exitPrice }))}
+      onOpenTrade={handleOpenTrade}
+      onRefreshTrades={refreshTrades}
+      onSymbolChange={setSymbol}
+      openTrades={openTrades}
+      successMessage={successMessage}
+      symbol={symbol}
+    />
+  );
+}
+
+interface TradesContentProps {
+  activeTab: TradeHistoryTab;
+  closedTrades: Trade[];
+  entryPrice: string;
+  errorMessage: string | null;
+  exitPrices: Record<number, string>;
+  isSaving: boolean;
+  onActiveTabChange: (tab: TradeHistoryTab) => void;
+  onCloseTrade: (tradeId: number) => void;
+  onEntryPriceChange: (entryPrice: string) => void;
+  onExitPriceChange: (tradeId: number, exitPrice: string) => void;
+  onOpenTrade: (event: FormEvent<HTMLFormElement>) => void;
+  onRefreshTrades: () => void;
+  onSymbolChange: (symbol: string) => void;
+  openTrades: Trade[];
+  successMessage: string | null;
+  symbol: string;
+}
+
+export function TradesContent({
+  activeTab,
+  closedTrades,
+  entryPrice,
+  errorMessage,
+  exitPrices,
+  isSaving,
+  onActiveTabChange,
+  onCloseTrade,
+  onEntryPriceChange,
+  onExitPriceChange,
+  onOpenTrade,
+  onRefreshTrades,
+  onSymbolChange,
+  openTrades,
+  successMessage,
+  symbol,
+}: TradesContentProps) {
+  return (
     <div className="space-y-8">
       <div>
         <h2 className="text-3xl font-bold text-white">Trades</h2>
@@ -141,19 +200,19 @@ export function TradesPage() {
           <button
             className="rounded-lg border border-slate-700 px-3 py-2 text-sm font-semibold text-slate-200 transition hover:border-cyan-400 hover:text-cyan-100 disabled:cursor-not-allowed disabled:opacity-60"
             disabled={isSaving}
-            onClick={refreshTrades}
+            onClick={onRefreshTrades}
             type="button"
           >
             Refresh history
           </button>
         </div>
-        <form className="mt-4 grid gap-4 md:grid-cols-[1fr_1fr_auto]" onSubmit={handleOpenTrade}>
+        <form className="mt-4 grid gap-4 md:grid-cols-[1fr_1fr_auto]" onSubmit={onOpenTrade}>
           <label className="text-sm font-medium text-slate-300">
             Symbol
             <input
               className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none focus:border-cyan-400"
               disabled={isSaving}
-              onChange={(event) => setSymbol(event.target.value)}
+              onChange={(event) => onSymbolChange(event.target.value)}
               placeholder="BTCUSD"
               value={symbol}
             />
@@ -164,7 +223,7 @@ export function TradesPage() {
               className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none focus:border-cyan-400"
               disabled={isSaving}
               min="0"
-              onChange={(event) => setEntryPrice(event.target.value)}
+              onChange={(event) => onEntryPriceChange(event.target.value)}
               placeholder="100.00"
               step="0.01"
               type="number"
@@ -190,8 +249,8 @@ export function TradesPage() {
             <p className="mt-1 text-sm text-slate-400">Open trades can be closed with an exit price; closed trades show realized PnL.</p>
           </div>
           <div className="flex rounded-xl border border-slate-800 bg-slate-950/70 p-1" role="tablist" aria-label="Trade history tabs">
-            <TradeTabButton active={activeTab === 'open'} count={openTrades.length} label="Open" onClick={() => setActiveTab('open')} />
-            <TradeTabButton active={activeTab === 'closed'} count={closedTrades.length} label="Closed" onClick={() => setActiveTab('closed')} />
+            <TradeTabButton active={activeTab === 'open'} count={openTrades.length} label="Open" onClick={() => onActiveTabChange('open')} />
+            <TradeTabButton active={activeTab === 'closed'} count={closedTrades.length} label="Closed" onClick={() => onActiveTabChange('closed')} />
           </div>
         </div>
 
@@ -200,8 +259,8 @@ export function TradesPage() {
             emptyMessage="No open trades. Open a mock trade to start the lifecycle."
             exitPrices={exitPrices}
             isSaving={isSaving}
-            onCloseTrade={handleCloseTrade}
-            onExitPriceChange={(tradeId, exitPrice) => setExitPrices((currentExitPrices) => ({ ...currentExitPrices, [tradeId]: exitPrice }))}
+            onCloseTrade={onCloseTrade}
+            onExitPriceChange={onExitPriceChange}
             title="Open trades"
             trades={openTrades}
           />
