@@ -57,7 +57,13 @@ from app.schemas.simulations import (
     SimulationRun,
     SimulationStatus,
 )
-from app.schemas.signals import Signal, SignalAction, SignalCreate
+from app.schemas.signals import (
+    Signal,
+    SignalAction,
+    SignalCreate,
+    SignalDecisionResponse,
+    SignalGenerateRequest,
+)
 from app.schemas.strategy import StrategyParameterSpec, StrategyParameterValue
 from app.schemas.trades import Trade, TradeClose, TradeCreate
 from app.schemas.trade_journal import (
@@ -112,6 +118,8 @@ __all__ = [
     "Signal",
     "SignalAction",
     "SignalCreate",
+    "SignalDecisionResponse",
+    "SignalGenerateRequest",
     "SimulationArtifact",
     "SimulationRequest",
     "SimulationResultSchema",
