@@ -264,9 +264,11 @@ export interface DrawdownCurvePoint {
 }
 
 // Settings schemas: apps/api/app/schemas/settings.py
+export type SettingsTimeframe = '5m' | '15m' | '1h' | '4h' | '1d';
+
 export interface UserSettingsUpdate {
   symbols: string[];
-  timeframe: string;
+  timeframe: SettingsTimeframe;
   balance: number;
   /** Decimal fraction risk per trade; 0.02 means 2%. */
   risk_per_trade: number;

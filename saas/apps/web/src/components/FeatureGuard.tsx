@@ -23,7 +23,10 @@ export function FeatureGuard({ requireSymbols = false, requireTradingEnabled = f
           return;
         }
         const settings = response.data;
-        if (requireSymbols && settings.symbols.length === 0) {
+        const configuredSymbols = settings.symbols.filter(
+          (symbol) => symbol.trim().length > 0,
+        );
+        if (requireSymbols && configuredSymbols.length === 0) {
           setMessage(`${featureName} needs at least one trading symbol in settings before it can request backend data.`);
           setStatus('blocked');
           return;
