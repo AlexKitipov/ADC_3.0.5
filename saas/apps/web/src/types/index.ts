@@ -88,7 +88,7 @@ export interface Trade {
   exit_time: string | null;
   pnl: number | null;
   pnl_percent: number | null;
-  status: 'open' | 'closed' | (string & Record<never, never>);
+  status: string;
 }
 
 // Trade journal artifact schemas: apps/api/app/schemas/trade_journal.py
