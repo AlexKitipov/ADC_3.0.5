@@ -3,7 +3,9 @@
 from datetime import datetime
 from enum import Enum
 
-from pydantic import BaseModel, ConfigDict
+from typing import Any
+
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class SignalAction(str, Enum):
@@ -12,6 +14,30 @@ class SignalAction(str, Enum):
     BUY = "BUY"
     SELL = "SELL"
     HOLD = "HOLD"
+
+
+class SignalGenerateRequest(BaseModel):
+    """Payload for deterministic signal generation.
+
+    ``symbol`` and ``timeframe`` are optional so a future endpoint can apply
+    API-level defaults without coupling those defaults to persistence schemas.
+    ``strategy_settings`` allows callers/tests to override indicator periods and
+    RSI thresholds while remaining a response-only, non-DB DTO in this PR.
+    """
+
+    symbol: str | None = None
+    timeframe: str | None = None
+    strategy_settings: dict[str, Any] = Field(default_factory=dict)
+
+
+class SignalDecisionResponse(BaseModel):
+    """Response DTO for deterministic signal generation results."""
+
+    symbol: str
+    action: SignalAction
+    confidence: float
+    explanation: str
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
 
 class SignalCreate(BaseModel):
@@ -38,4 +64,10 @@ class Signal(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
-__all__ = ["Signal", "SignalAction", "SignalCreate"]
+__all__ = [
+    "Signal",
+    "SignalAction",
+    "SignalCreate",
+    "SignalDecisionResponse",
+    "SignalGenerateRequest",
+]
