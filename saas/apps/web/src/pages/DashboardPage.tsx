@@ -1,5 +1,6 @@
 import type { ReactElement, ReactNode } from 'react';
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   Area,
   AreaChart,
@@ -12,7 +13,10 @@ import {
 import {
   Activity,
   AlertTriangle,
+  ArrowRight,
   DollarSign,
+  Settings,
+  Sparkles,
   TrendingDown,
   TrendingUp,
   Trophy,
@@ -26,12 +30,48 @@ import { StatCard } from '../components/StatCard';
 import type { DashboardStats, DrawdownCurvePoint, EquityCurvePoint } from '../types';
 import { formatCurrency, formatPercent } from '../lib/format';
 
+type NormalizedDashboardStats = {
+  [Key in keyof DashboardStats]: number;
+};
+
 interface DashboardLoadResult {
-  stats: DashboardStats;
+  stats: NormalizedDashboardStats;
   equity: EquityCurvePoint[];
   drawdown: DrawdownCurvePoint[];
   warnings: string[];
 }
+
+const toFiniteNumber = (value: number | null | undefined) =>
+  typeof value === 'number' && Number.isFinite(value) ? value : 0;
+
+export const normalizeDashboardStats = (
+  stats: DashboardStats,
+): NormalizedDashboardStats => ({
+  total_balance: toFiniteNumber(stats.total_balance),
+  current_equity: toFiniteNumber(stats.current_equity),
+  max_drawdown: toFiniteNumber(stats.max_drawdown),
+  win_rate: toFiniteNumber(stats.win_rate),
+  total_trades: Math.trunc(toFiniteNumber(stats.total_trades)),
+  monthly_pnl: toFiniteNumber(stats.monthly_pnl),
+});
+
+const normalizeEquityCurve = (points: EquityCurvePoint[] | null | undefined) =>
+  (points ?? []).map((point) => ({
+    ...point,
+    equity: toFiniteNumber(point.equity),
+    balance: toFiniteNumber(point.balance),
+  }));
+
+const normalizeDrawdownCurve = (
+  points: DrawdownCurvePoint[] | null | undefined,
+) =>
+  (points ?? []).map((point) => ({
+    ...point,
+    drawdown: toFiniteNumber(point.drawdown),
+  }));
+
+export const shouldShowSignalCta = (stats: NormalizedDashboardStats) =>
+  stats.total_trades === 0;
 
 export async function loadDashboardData(
   days = 30,
@@ -57,16 +97,21 @@ export async function loadDashboardData(
   }
 
   return {
-    stats: statsResult.value.data,
-    equity: equityResult.status === 'fulfilled' ? equityResult.value.data : [],
+    stats: normalizeDashboardStats(statsResult.value.data),
+    equity:
+      equityResult.status === 'fulfilled'
+        ? normalizeEquityCurve(equityResult.value.data)
+        : [],
     drawdown:
-      drawdownResult.status === 'fulfilled' ? drawdownResult.value.data : [],
+      drawdownResult.status === 'fulfilled'
+        ? normalizeDrawdownCurve(drawdownResult.value.data)
+        : [],
     warnings,
   };
 }
 
 export function DashboardPage() {
-  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [stats, setStats] = useState<NormalizedDashboardStats | null>(null);
   const [equity, setEquity] = useState<EquityCurvePoint[]>([]);
   const [drawdown, setDrawdown] = useState<DrawdownCurvePoint[]>([]);
   const [warnings, setWarnings] = useState<string[]>([]);
@@ -105,6 +150,8 @@ export function DashboardPage() {
     );
   }
 
+  const showSignalCta = shouldShowSignalCta(stats);
+
   return (
     <div className="space-y-8">
       <div>
@@ -129,6 +176,8 @@ export function DashboardPage() {
           </ul>
         </div>
       )}
+
+      {showSignalCta && <DashboardOnboarding />}
 
       <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_24rem]">
         <SessionControls />
@@ -166,7 +215,7 @@ export function DashboardPage() {
           <ChartCard
             title="Equity Curve"
             description="Last 30 days of balance and equity snapshots."
-            emptyMessage="No equity snapshots are available for this period."
+            emptyMessage="No equity snapshots yet. Generate a signal, open a trade, and the metrics service will plot snapshots here."
             hasData={equity.length > 0}
           >
             <AreaChart data={equity}>
@@ -203,7 +252,7 @@ export function DashboardPage() {
           <ChartCard
             title="Drawdown Curve"
             description="Last 30 days of drawdown snapshots."
-            emptyMessage="No drawdown snapshots are available for this period."
+            emptyMessage="No drawdown snapshots yet. Once trades or account snapshots exist, risk changes will appear here."
             hasData={drawdown.length > 0}
           >
             <AreaChart data={drawdown}>
@@ -263,6 +312,71 @@ export function DashboardPage() {
           </div>
         </aside>
       </section>
+    </div>
+  );
+}
+
+function DashboardOnboarding() {
+  return (
+    <section className="rounded-2xl border border-blue-500/30 bg-blue-500/10 p-6 text-blue-50 shadow-xl shadow-slate-950/20">
+      <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+        <div>
+          <p className="text-sm font-semibold uppercase tracking-wide text-blue-200">
+            New account next steps
+          </p>
+          <h3 className="mt-2 text-2xl font-bold text-white">
+            Build your first dashboard curve
+          </h3>
+          <p className="mt-2 max-w-2xl text-sm text-blue-100/90">
+            Configure strategy settings, generate a signal, then open a trade.
+            The dashboard will stay at safe zero defaults until metrics arrive.
+          </p>
+        </div>
+        <Link
+          to="/signals"
+          className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-400 px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-blue-300"
+        >
+          Generate signal
+          <ArrowRight className="h-4 w-4" />
+        </Link>
+      </div>
+      <div className="mt-6 grid gap-3 md:grid-cols-3">
+        <OnboardingStep
+          icon={<Settings className="h-4 w-4" />}
+          title="1. Configure settings"
+          description="Confirm symbols, timeframe, and risk before automation starts."
+        />
+        <OnboardingStep
+          icon={<Sparkles className="h-4 w-4" />}
+          title="2. Generate signal"
+          description="Create a fresh strategy signal to validate the next action."
+        />
+        <OnboardingStep
+          icon={<Activity className="h-4 w-4" />}
+          title="3. Open trade"
+          description="Use the signal to open a position and start collecting metrics."
+        />
+      </div>
+    </section>
+  );
+}
+
+interface OnboardingStepProps {
+  icon: ReactNode;
+  title: string;
+  description: string;
+}
+
+function OnboardingStep({ icon, title, description }: OnboardingStepProps) {
+  return (
+    <div className="rounded-xl border border-blue-300/20 bg-slate-950/30 p-4">
+      <div className="flex items-center gap-2 text-sm font-semibold text-white">
+        <span className="rounded-lg bg-blue-300/20 p-2 text-blue-100">
+          {icon}
+        </span>
+        {title}
+      </div>
+      <p className="mt-3 text-sm text-blue-100/80">{description}</p>
     </div>
   );
 }

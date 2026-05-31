@@ -244,23 +244,23 @@ export interface TradingSessionState {
 
 // Dashboard schemas: apps/api/app/schemas/dashboard.py
 export interface DashboardStats {
-  total_balance: number;
-  current_equity: number;
-  max_drawdown: number;
-  win_rate: number;
-  total_trades: number;
-  monthly_pnl: number;
+  total_balance: number | null;
+  current_equity: number | null;
+  max_drawdown: number | null;
+  win_rate: number | null;
+  total_trades: number | null;
+  monthly_pnl: number | null;
 }
 
 export interface EquityCurvePoint {
   timestamp: string;
-  equity: number;
-  balance: number;
+  equity: number | null;
+  balance: number | null;
 }
 
 export interface DrawdownCurvePoint {
   timestamp: string;
-  drawdown: number;
+  drawdown: number | null;
 }
 
 // Settings schemas: apps/api/app/schemas/settings.py
