@@ -32,6 +32,7 @@ EXPECTED_BACKEND_ROUTES = {
     ("PUT", "/settings/user-settings"),
     ("GET", "/signals"),
     ("POST", "/signals/create"),
+    ("POST", "/signals/generate"),
     ("GET", "/signals/latest"),
     ("GET", "/signals/by-symbol/{symbol}"),
     ("GET", "/trades"),

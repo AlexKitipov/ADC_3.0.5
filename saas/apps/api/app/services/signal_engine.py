@@ -217,9 +217,29 @@ def generate_signal(
             "macd_histogram": hist_current,
             "macd_histogram_previous": hist_previous,
             "volatility_proxy": volatility,
+            "price": latest_close or 0.0,
             "rows": len(market_data),
         },
     )
+
+
+def decision_to_signal_values(decision: SignalDecision) -> dict[str, float | str]:
+    """Extract persistence-safe Signal column values from a decision.
+
+    Generated decisions keep indicator snapshots in metadata so API endpoints can
+    persist the MVP ``Signal`` row without adding new nullable/non-nullable DB
+    columns. Missing provider/indicator values fall back to ``0.0`` to preserve
+    the legacy manual signal table contract during defensive HOLD decisions.
+    """
+
+    metadata = decision.metadata
+    return {
+        "symbol": decision.symbol,
+        "action": decision.action,
+        "price": _coerce_float(metadata.get("price")) or 0.0,
+        "rsi": _coerce_float(metadata.get("rsi")) or 0.0,
+        "macd": _coerce_float(metadata.get("macd")) or 0.0,
+    }
 
 
 def generate_signal_decision(
@@ -400,4 +420,9 @@ def _clamp(value: float, lower: float = 0.0, upper: float = 1.0) -> float:
     return max(lower, min(upper, round(float(value), 4)))
 
 
-__all__ = ["SignalDecision", "generate_signal", "generate_signal_decision"]
+__all__ = [
+    "SignalDecision",
+    "decision_to_signal_values",
+    "generate_signal",
+    "generate_signal_decision",
+]
