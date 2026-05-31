@@ -18,9 +18,13 @@ from app.services.trade_service import (
 router = APIRouter()
 
 
-@router.get("")
+@router.get(
+    "",
+    tags=["Readiness / Demo"],
+    summary="Readiness-only trade collection placeholder",
+)
 def list_trades() -> dict[str, list[dict[str, str]]]:
-    """Return the current trade collection readiness payload."""
+    """Return a readiness/demo placeholder; not an MVP product data endpoint."""
 
     return {"trades": []}
 
