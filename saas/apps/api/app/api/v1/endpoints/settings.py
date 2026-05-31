@@ -50,7 +50,7 @@ def get_user_settings(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> UserSettings:
-    """Return trading and notification settings for the authenticated user."""
+    """Return settings, creating usable MVP defaults for first-time users."""
 
     return get_or_create_user_settings(current_user.id, db)
 
@@ -63,6 +63,7 @@ def update_user_settings(
 ) -> UserSettings:
     """Fully replace the authenticated user's settings.
 
+    The request schema validates symbols, timeframe, balance, and risk bounds.
     ``risk_per_trade`` and ``grid_step_pct`` use decimal fraction semantics:
     0.02 means 2%, and 0.005 means 0.5%.
     """

@@ -16,19 +16,30 @@ from sqlalchemy import (
 from sqlalchemy.orm import relationship
 
 from app.db.session import Base
+from app.schemas.settings import (
+    DEFAULT_BALANCE,
+    DEFAULT_EMAIL_NOTIFICATIONS,
+    DEFAULT_ENABLE_TRADING,
+    DEFAULT_GRID_LEVELS,
+    DEFAULT_GRID_STEP_PCT,
+    DEFAULT_MARTINGALE_FACTOR,
+    DEFAULT_RISK_PER_TRADE,
+    DEFAULT_SYMBOLS,
+    DEFAULT_TIMEFRAME,
+)
 
 SIGNAL_ACTION_VALUES = ("BUY", "SELL", "HOLD")
 
 DEFAULT_USER_SETTINGS = {
-    "symbols": ["EURUSD", "GBPUSD"],
-    "timeframe": "1d",
-    "balance": 10000.0,
-    "risk_per_trade": 0.02,
-    "grid_levels": 3,
-    "grid_step_pct": 0.005,
-    "martingale_factor": 1.1,
-    "enable_trading": False,
-    "email_notifications": True,
+    "symbols": DEFAULT_SYMBOLS,
+    "timeframe": DEFAULT_TIMEFRAME,
+    "balance": DEFAULT_BALANCE,
+    "risk_per_trade": DEFAULT_RISK_PER_TRADE,
+    "grid_levels": DEFAULT_GRID_LEVELS,
+    "grid_step_pct": DEFAULT_GRID_STEP_PCT,
+    "martingale_factor": DEFAULT_MARTINGALE_FACTOR,
+    "enable_trading": DEFAULT_ENABLE_TRADING,
+    "email_notifications": DEFAULT_EMAIL_NOTIFICATIONS,
 }
 
 

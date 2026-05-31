@@ -2,12 +2,24 @@ import { FormEvent, useEffect, useState } from "react";
 import { notificationsAPI } from "../api/notifications";
 import { settingsAPI } from "../api/settings";
 import { LoadingState } from "../components/LoadingState";
-import { UserSettings, UserSettingsUpdate } from "../types";
+import { SettingsTimeframe, UserSettings, UserSettingsUpdate } from "../types";
+
+function parseSymbols(symbols: string) {
+  return Array.from(
+    new Set(
+      symbols
+        .split(",")
+        .map((symbol) => symbol.trim().toUpperCase())
+        .filter(Boolean),
+    ),
+  );
+}
 
 export function SettingsPage() {
   const [settings, setSettings] = useState<UserSettings | null>(null);
   const [symbols, setSymbols] = useState("");
   const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [isTestingNotification, setIsTestingNotification] = useState(false);
@@ -21,6 +33,7 @@ export function SettingsPage() {
       .then((response) => {
         setSettings(response.data);
         setSymbols(response.data.symbols.join(", "));
+        setError(null);
       })
       .catch((fetchError) => {
         console.error("Failed to fetch settings:", fetchError);
@@ -38,12 +51,23 @@ export function SettingsPage() {
     return () => window.clearTimeout(timeoutId);
   }, [saved]);
 
+  const clearValidationState = () => {
+    setError(null);
+    setSaved(false);
+  };
+
   const updateSettings = (nextSettings: Partial<UserSettingsUpdate>) => {
+    clearValidationState();
     setSettings((currentSettings) =>
       currentSettings
         ? { ...currentSettings, ...nextSettings }
         : currentSettings,
     );
+  };
+
+  const handleSymbolsChange = (value: string) => {
+    clearValidationState();
+    setSymbols(value);
   };
 
   const handleSubmit = async (event: FormEvent) => {
@@ -53,11 +77,15 @@ export function SettingsPage() {
       return;
     }
 
+    const parsedSymbols = parseSymbols(symbols);
+    if (parsedSymbols.length === 0) {
+      setSaved(false);
+      setError("Add at least one trading symbol before saving settings.");
+      return;
+    }
+
     const nextSettings: UserSettingsUpdate = {
-      symbols: symbols
-        .split(",")
-        .map((symbol) => symbol.trim())
-        .filter(Boolean),
+      symbols: parsedSymbols,
       timeframe: settings.timeframe,
       balance: settings.balance,
       risk_per_trade: settings.risk_per_trade,
@@ -68,6 +96,7 @@ export function SettingsPage() {
       email_notifications: settings.email_notifications,
     };
 
+    setIsSaving(true);
     try {
       const response = await settingsAPI.updateUserSettings(nextSettings);
       setSettings(response.data);
@@ -80,6 +109,8 @@ export function SettingsPage() {
       setError(
         "Failed to save settings. Please check your values and try again.",
       );
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -126,7 +157,8 @@ export function SettingsPage() {
       <div>
         <h2 className="text-3xl font-bold text-white">Settings</h2>
         <p className="mt-2 text-slate-400">
-          Configure trading preferences and notifications.
+          Configure MVP defaults for symbols, timeframe, risk, balance, and
+          notifications.
         </p>
       </div>
 
@@ -138,21 +170,27 @@ export function SettingsPage() {
           <span className="text-sm text-slate-300">Trading Symbols</span>
           <input
             value={symbols}
-            onChange={(event) => setSymbols(event.target.value)}
-            placeholder="BTCUSDT, ETHUSDT"
+            onChange={(event) => handleSymbolsChange(event.target.value)}
+            placeholder="EURUSD, GBPUSD"
             className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white outline-none focus:border-brand-500"
           />
+          <span className="mt-2 block text-xs text-slate-500">
+            Defaults are loaded automatically for new users and can be edited here.
+          </span>
         </label>
 
         <div className="grid gap-4 md:grid-cols-2">
           <NumberField
-            label="Account Balance"
+            label="Initial Balance"
             value={settings.balance}
+            min="0"
             onChange={(value) => updateSettings({ balance: value })}
           />
           <NumberField
             label="Risk Per Trade (%)"
             value={settings.risk_per_trade * 100}
+            min="0.1"
+            max="20"
             step="0.1"
             onChange={(value) =>
               updateSettings({ risk_per_trade: value / 100 })
@@ -161,17 +199,23 @@ export function SettingsPage() {
           <NumberField
             label="Grid Levels"
             value={settings.grid_levels}
+            min="1"
+            max="100"
             onChange={(value) => updateSettings({ grid_levels: value })}
           />
           <NumberField
             label="Grid Step (%)"
             value={settings.grid_step_pct * 100}
+            min="0.01"
+            max="20"
             step="0.1"
             onChange={(value) => updateSettings({ grid_step_pct: value / 100 })}
           />
           <NumberField
             label="Martingale Factor"
             value={settings.martingale_factor}
+            min="1"
+            max="10"
             step="0.1"
             onChange={(value) => updateSettings({ martingale_factor: value })}
           />
@@ -180,7 +224,9 @@ export function SettingsPage() {
             <select
               value={settings.timeframe}
               onChange={(event) =>
-                updateSettings({ timeframe: event.target.value })
+                updateSettings({
+                  timeframe: event.target.value as SettingsTimeframe,
+                })
               }
               className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white outline-none focus:border-brand-500"
             >
@@ -226,9 +272,10 @@ export function SettingsPage() {
         <div className="flex flex-col gap-3 md:flex-row">
           <button
             type="submit"
-            className="w-full rounded-xl bg-brand-600 px-5 py-3 font-semibold text-white hover:bg-brand-700 md:w-auto"
+            disabled={isSaving}
+            className="w-full rounded-xl bg-brand-600 px-5 py-3 font-semibold text-white hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50 md:w-auto"
           >
-            Save Settings
+            {isSaving ? "Saving..." : "Save Settings"}
           </button>
           <button
             type="button"
@@ -247,11 +294,15 @@ export function SettingsPage() {
 function NumberField({
   label,
   value,
+  min,
+  max,
   step = "1",
   onChange,
 }: {
   label: string;
   value: number;
+  min?: string;
+  max?: string;
   step?: string;
   onChange: (value: number) => void;
 }) {
@@ -260,6 +311,8 @@ function NumberField({
       <span className="text-sm text-slate-300">{label}</span>
       <input
         type="number"
+        min={min}
+        max={max}
         step={step}
         value={value}
         onChange={(event) => onChange(Number(event.target.value))}
