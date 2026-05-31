@@ -14,7 +14,7 @@ export function AuthPage({ mode }: AuthPageProps) {
   const [password, setPassword] = useState('');
 
   if (token) {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/dashboard" replace />;
   }
 
   const isRegister = mode === 'register';

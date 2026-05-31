@@ -1,33 +1,11 @@
-import { Activity, BarChart3, Beaker, Bell, BookOpen, BrainCircuit, Database, LogOut, Radio, Settings, Zap } from 'lucide-react';
-import type { LucideIcon } from 'lucide-react';
+import { BookOpen, LogOut } from 'lucide-react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { showLabNavigation } from '../config/features';
+import { labNavItems, mvpNavItems } from '../config/navigation';
+import type { NavItem } from '../config/navigation';
 import { useAuthStore } from '../store/authStore';
 import { LiveMarketWidget } from './LiveMarketWidget';
 import { SessionControls } from './SessionControls';
-
-type NavItem = {
-  to: string;
-  label: string;
-  icon: LucideIcon;
-  description: string;
-};
-
-const navItems: NavItem[] = [
-  { to: '/dashboard', label: 'Dashboard', icon: BarChart3, description: 'Equity, drawdown, live status' },
-  { to: '/signals', label: 'Signals', icon: Zap, description: 'Indicator-driven ideas' },
-  { to: '/trades', label: 'Trades / History', icon: Activity, description: 'Orders and trade records' },
-  { to: '/settings', label: 'Settings', icon: Settings, description: 'Risk and preferences' },
-];
-
-const labNavItems: NavItem[] = [
-  { to: '/market-data', label: 'Market Data', icon: Database, description: 'OHLCV and indicators' },
-  { to: '/sessions', label: 'Sessions', icon: Radio, description: 'Runtime controls and events' },
-  { to: '/trade-journal', label: 'Trade Journal', icon: BookOpen, description: 'Artifacts and exports' },
-  { to: '/simulations', label: 'Simulations', icon: Beaker, description: 'Strategy experiments' },
-  { to: '/ai-controls', label: 'RL / LSTM', icon: BrainCircuit, description: 'Standalone model jobs' },
-  { to: '/notifications', label: 'Notifications', icon: Bell, description: 'Delivery tests' },
-];
 
 const footerLinks = [
   { label: 'Docs', href: '/docs' },
@@ -92,7 +70,7 @@ export function AppShell() {
         </div>
 
         <nav className="mt-6 space-y-2 overflow-y-auto pr-1" aria-label="Primary navigation">
-          {navItems.map((item) => <SidebarLink key={item.to} {...item} />)}
+          {mvpNavItems.map((item) => <SidebarLink key={item.to} {...item} />)}
 
           {showLabNavigation && (
             <div className="pt-4">
@@ -129,7 +107,7 @@ export function AppShell() {
             </button>
           </div>
           <nav className="mt-4 flex gap-2 overflow-x-auto lg:hidden" aria-label="Mobile navigation">
-            {navItems.map((item) => <MobileLink key={item.to} {...item} />)}
+            {mvpNavItems.map((item) => <MobileLink key={item.to} {...item} />)}
             {showLabNavigation && labNavItems.map((item) => <MobileLink key={item.to} {...item} />)}
           </nav>
         </header>

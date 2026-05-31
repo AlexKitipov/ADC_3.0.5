@@ -4,17 +4,35 @@ import { settingsAPI } from '../api/settings';
 import { LoadingState } from './LoadingState';
 import { EmptyState, ErrorState } from './PageState';
 
+const DEFAULT_MVP_SYMBOLS = ['EURUSD', 'GBPUSD'];
+
 interface FeatureGuardProps {
   requireSymbols?: boolean;
   requireTradingEnabled?: boolean;
   featureName: string;
 }
 
+export function resolveConfiguredSymbols(symbols: string[] | null | undefined) {
+  const configuredSymbols = (symbols ?? [])
+    .map((symbol) => symbol.trim().toUpperCase())
+    .filter(Boolean);
+
+  return configuredSymbols.length > 0 ? configuredSymbols : DEFAULT_MVP_SYMBOLS;
+}
+
 export function FeatureGuard({ requireSymbols = false, requireTradingEnabled = false, featureName }: FeatureGuardProps) {
-  const [status, setStatus] = useState<'loading' | 'ready' | 'blocked' | 'error'>('loading');
+  const [status, setStatus] = useState<'loading' | 'ready' | 'blocked' | 'error'>(() => (
+    requireSymbols || requireTradingEnabled ? 'loading' : 'ready'
+  ));
   const [message, setMessage] = useState('');
 
   useEffect(() => {
+    if (!requireSymbols && !requireTradingEnabled) {
+      setStatus('ready');
+      setMessage('');
+      return undefined;
+    }
+
     let isMounted = true;
 
     settingsAPI.getUserSettings()
@@ -23,19 +41,18 @@ export function FeatureGuard({ requireSymbols = false, requireTradingEnabled = f
           return;
         }
         const settings = response.data;
-        const configuredSymbols = settings.symbols.filter(
-          (symbol) => symbol.trim().length > 0,
-        );
+        const configuredSymbols = resolveConfiguredSymbols(settings.symbols);
         if (requireSymbols && configuredSymbols.length === 0) {
           setMessage(`${featureName} needs at least one trading symbol in settings before it can request backend data.`);
           setStatus('blocked');
           return;
         }
         if (requireTradingEnabled && !settings.enable_trading) {
-          setMessage(`${featureName} uses trading controls, but automated trading is disabled in settings.`);
+          setMessage(`${featureName} uses automated trading controls, but automated trading is disabled in settings.`);
           setStatus('blocked');
           return;
         }
+        setMessage('');
         setStatus('ready');
       })
       .catch((error) => {
